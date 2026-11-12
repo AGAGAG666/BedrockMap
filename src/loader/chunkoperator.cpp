@@ -73,6 +73,12 @@ bool ChunkOperator::deleteRegion(const QRegion& chunkRegion, AsyncLevelLoader& l
     return success;
 }
 
+bool ChunkOperator::clearRegionEntities(const QRegion& chunkRegion, AsyncLevelLoader& loader, int dim) {
+    bool success = true;
+    forEachChunkInRegion(chunkRegion, dim, [&](const bl::chunk_pos& cp) { success = loader.clearChunkEntities(cp) && success; });
+    return success;
+}
+
 bool ChunkOperator::deleteOutsideRegion(const QRegion& keepRegion, AsyncLevelLoader& loader, int dim,
                                         std::vector<bl::chunk_pos>* affected_regions, bool invalidate_tiles) {
     bool success = true;

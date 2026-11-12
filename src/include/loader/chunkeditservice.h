@@ -25,6 +25,7 @@ class ChunkEditService {
     std::optional<bl::raw_chunk> getRawChunk(const bl::chunk_pos& pos);
 
     bool deleteChunk(const bl::chunk_pos& pos);
+    bool clearChunkEntities(const bl::chunk_pos& pos);
     bool putRawChunk(const bl::raw_chunk& raw);
     bool createVoid(const bl::chunk_pos& pos);
     bool setRawChunkBiome(const bl::chunk_pos& pos, bl::biome biome);

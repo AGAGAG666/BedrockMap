@@ -39,6 +39,10 @@ bool ChunkEditService::deleteChunk(const bl::chunk_pos& pos) {
     return true;
 }
 
+bool ChunkEditService::clearChunkEntities(const bl::chunk_pos& pos) {
+    return canEdit() && storage_.clearChunkEntities(pos);
+}
+
 bool ChunkEditService::putRawChunk(const bl::raw_chunk& raw) {
     if (!canEdit()) return false;
     storage_.putRawChunk(raw);

@@ -16,6 +16,7 @@ AppMenu {
 
     signal unselectRequested
     signal deleteSelectionRequested
+    signal deleteSelectionEntitiesRequested
     signal deleteOutsideSelectionRequested
     signal createVoidRequested
     signal setBiomeRequested
@@ -39,9 +40,14 @@ AppMenu {
         menuItemVisible: root.insideSelection
 
         AppMenuItem {
-            text: qsTr("Delete")
+            text: qsTr("Delete chunks and entities")
             enabled: root.operationEnabled
             onTriggered: root.deleteSelectionRequested()
+        }
+        AppMenuItem {
+            text: qsTr("Delete entities only")
+            enabled: root.operationEnabled
+            onTriggered: root.deleteSelectionEntitiesRequested()
         }
         AppMenuItem {
             text: qsTr("Delete outside selection")

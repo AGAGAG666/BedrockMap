@@ -44,6 +44,7 @@ class ChunkStorage {
     std::optional<bl::raw_chunk> getRawChunk(const bl::chunk_pos& pos);
     void putMissing(const bl::chunk_pos& pos);
     void putRawChunk(const bl::raw_chunk& raw);
+    bool clearChunkEntities(const bl::chunk_pos& pos);
 
     /// True when the chunk has an uncommitted edit held in memory (a replacement
     /// or a delete marker) rather than in LevelDB.

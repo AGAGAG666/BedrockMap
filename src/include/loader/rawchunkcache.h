@@ -2,6 +2,7 @@
 #define BEDROCKMAP_RAWCHUNKCACHE_H
 
 #include <optional>
+#include <set>
 #include <unordered_map>
 
 #include "bedrock_key.h"
@@ -14,12 +15,14 @@ class RawChunkCache {
     struct CachedChunk {
         std::optional<bl::raw_chunk> chunk;
         bool shouldDelete = false;
+        std::set<std::string> removedActorUids;
     };
 
     bool empty() const { return cache_.empty(); }
     bool isDirty() const { return !cache_.empty(); }
 
     void putChunk(const bl::chunk_pos& pos, const bl::raw_chunk& chunk);
+    void clearChunkEntities(const bl::chunk_pos& pos, bl::raw_chunk chunk);
 
     bl::chunk* getChunk(const bl::chunk_pos& pos, bl::chunk_load_policy policy = bl::chunk_load_policy::All) const;
 

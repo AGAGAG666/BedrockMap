@@ -24,6 +24,7 @@ class ChunkOperator {
     static bool importRegion(const ExportedRegion& region, AsyncLevelLoader& loader, bool invalidate_tiles = true);
 
     static bool deleteRegion(const QRegion& chunkRegion, AsyncLevelLoader& loader, int dim, bool invalidate_tiles = true);
+    static bool clearRegionEntities(const QRegion& chunkRegion, AsyncLevelLoader& loader, int dim);
 
     /// Mark every indexed chunk in the dimension for deletion except those in
     /// `keepRegion`. `affected_regions` receives each 8x8 chunk region that

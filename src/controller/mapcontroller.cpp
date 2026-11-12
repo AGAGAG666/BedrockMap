@@ -381,6 +381,14 @@ bool MapController::deleteSelectionAsync() {
     });
 }
 
+bool MapController::deleteSelectionEntitiesAsync() {
+    return startSelectionOperation([](AsyncLevelLoader& loader, const QRegion& region, int dimension) {
+        const bool success = ChunkOperator::clearRegionEntities(region, loader, dimension);
+        return SelectionOperationResult::refreshSelection(
+            success, success ? QString() : MapController::tr("Some selected chunk entities could not be deleted."));
+    });
+}
+
 bool MapController::deleteOutsideSelectionAsync() {
     if (!deleteOutsideAvailable()) return false;
     return startSelectionOperation([](AsyncLevelLoader& loader, const QRegion& region, int dimension) {

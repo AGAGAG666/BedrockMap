@@ -16,7 +16,21 @@ std::pair<int, int> RawChunkCache::chunkCounts() const {
 }
 
 void RawChunkCache::putChunk(const bl::chunk_pos& pos, const bl::raw_chunk& chunk) {
-    cache_.insert_or_assign(pos, CachedChunk{chunk});
+    auto previous = cache_.find(pos);
+    std::set<std::string> removed;
+    if (previous != cache_.end()) removed = std::move(previous->second.removedActorUids);
+    cache_.insert_or_assign(pos, CachedChunk{chunk, false, {}});
+    cache_.at(pos).removedActorUids = std::move(removed);
+}
+
+void RawChunkCache::clearChunkEntities(const bl::chunk_pos& pos, bl::raw_chunk chunk) {
+    std::set<std::string> removed;
+    for (const auto& [uid, raw] : chunk.get_entities()) removed.insert(uid);
+    chunk.set_normal(bl::chunk_key::Entity, "");
+    chunk.clear_entities();
+    putChunk(pos, chunk);
+    auto& pending = cache_.at(pos).removedActorUids;
+    pending.insert(removed.begin(), removed.end());
 }
 
 bl::chunk* RawChunkCache::getChunk(const bl::chunk_pos& pos, bl::chunk_load_policy policy) const {
@@ -43,7 +57,7 @@ void RawChunkCache::putMissing(const bl::chunk_pos& pos) {
         it->second.shouldDelete = true;
         it->second.chunk.reset();
     } else {
-        cache_.emplace(pos, CachedChunk{std::nullopt, true});
+        cache_.emplace(pos, CachedChunk{std::nullopt, true, {}});
     }
 }
 
@@ -55,6 +69,9 @@ void RawChunkCache::commit(bl::bedrock_level& level, leveldb::WriteBatch& batch)
             if (raw.read(level)) raw.write(batch, true);
         } else if (entry.chunk) {
             entry.chunk->write(batch, false);
+            for (const auto& uid : entry.removedActorUids) {
+                if (!entry.chunk->get_entities().contains(uid)) batch.Delete(std::string(bl::storage_key::actor) + uid);
+            }
         }
     }
 }

@@ -1096,6 +1096,11 @@
     <name>MapCanvas</name>
     <message>
         <location filename="../src/qml/MapCanvas.qml"/>
+        <source>Deleting selected chunk entities…</source>
+        <translation>正在删除所选区块内的实体……</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/MapCanvas.qml"/>
         <source>Export selected chunks</source>
         <translation>导出所选区块</translation>
     </message>
@@ -1183,6 +1188,16 @@
 </context>
 <context>
     <name>MapContextMenu</name>
+    <message>
+        <location filename="../src/qml/MapContextMenu.qml"/>
+        <source>Delete entities only</source>
+        <translation>仅删除实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/MapContextMenu.qml"/>
+        <source>Delete chunks and entities</source>
+        <translation>删除区块及实体</translation>
+    </message>
     <message>
         <location filename="../src/qml/MapContextMenu.qml"/>
         <source>Unselect</source>
@@ -1281,6 +1296,11 @@
 </context>
 <context>
     <name>MapController</name>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>Some selected chunk entities could not be deleted.</source>
+        <translation>部分所选区块内的实体无法删除。</translation>
+    </message>
     <message>
         <location filename="../src/controller/mapcontroller.cpp"/>
         <source>Some chunks outside the selection could not be deleted.</source>

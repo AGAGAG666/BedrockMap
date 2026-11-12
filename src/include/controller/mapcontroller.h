@@ -96,6 +96,7 @@ class MapController final : public QObject {
     Q_INVOKABLE void finishSelectionDrag();
     Q_INVOKABLE void cancelSelectionDrag();
     Q_INVOKABLE bool deleteSelectionAsync();
+    Q_INVOKABLE bool deleteSelectionEntitiesAsync();
     Q_INVOKABLE bool deleteOutsideSelectionAsync();
     Q_INVOKABLE bool createVoidSelectionAsync();
     Q_INVOKABLE bool setSelectionBiomeAsync(int biome);

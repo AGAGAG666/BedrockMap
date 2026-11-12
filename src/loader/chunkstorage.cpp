@@ -35,6 +35,20 @@ void ChunkStorage::putRawChunk(const bl::raw_chunk& raw) {
     cache_.putChunk(raw.pos(), raw);
 }
 
+bool ChunkStorage::clearChunkEntities(const bl::chunk_pos& pos) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::optional<bl::raw_chunk> raw;
+    if (cache_.hasChunk(pos)) {
+        raw = cache_.getRawChunk(pos);
+    } else {
+        bl::raw_chunk stored(pos);
+        if (stored.read(level_)) raw = std::move(stored);
+    }
+    if (!raw) return true;
+    cache_.clearChunkEntities(pos, std::move(*raw));
+    return true;
+}
+
 bool ChunkStorage::commit(const std::unordered_map<std::string, std::string>& globalModifies, const bl::nbt::compound_tag* levelDat) {
     std::lock_guard<std::mutex> lock(mutex_);
     last_commit_error_ = CommitError::None;

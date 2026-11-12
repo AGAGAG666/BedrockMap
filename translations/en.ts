@@ -1096,6 +1096,11 @@
     <name>MapCanvas</name>
     <message>
         <location filename="../src/qml/MapCanvas.qml"/>
+        <source>Deleting selected chunk entities…</source>
+        <translation>Deleting selected chunk entities…</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/MapCanvas.qml"/>
         <source>Export selected chunks</source>
         <translation type="unfinished">Export selected chunks</translation>
     </message>
@@ -1183,6 +1188,16 @@
 </context>
 <context>
     <name>MapContextMenu</name>
+    <message>
+        <location filename="../src/qml/MapContextMenu.qml"/>
+        <source>Delete entities only</source>
+        <translation>Delete entities only</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/MapContextMenu.qml"/>
+        <source>Delete chunks and entities</source>
+        <translation>Delete chunks and entities</translation>
+    </message>
     <message>
         <location filename="../src/qml/MapContextMenu.qml"/>
         <source>Unselect</source>
@@ -1281,6 +1296,11 @@
 </context>
 <context>
     <name>MapController</name>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>Some selected chunk entities could not be deleted.</source>
+        <translation>Some selected chunk entities could not be deleted.</translation>
+    </message>
     <message>
         <location filename="../src/controller/mapcontroller.cpp"/>
         <source>Some chunks outside the selection could not be deleted.</source>

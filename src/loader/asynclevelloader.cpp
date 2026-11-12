@@ -118,6 +118,12 @@ bool AsyncLevelLoader::deleteChunk(const bl::chunk_pos& p, bool notify_dirty) {
     return true;
 }
 
+bool AsyncLevelLoader::clearChunkEntities(const bl::chunk_pos& p) {
+    if (!edit_service_.clearChunkEntities(p)) return false;
+    emit dirtyChanged();
+    return true;
+}
+
 void AsyncLevelLoader::notifyDirtyChanged() { emit dirtyChanged(); }
 
 bool AsyncLevelLoader::putRawChunk(const bl::raw_chunk& raw) {

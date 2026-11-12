@@ -106,6 +106,7 @@ Item {
 
         onUnselectRequested: canvas.clearMapSelection()
         onDeleteSelectionRequested: canvas.deleteSelectedChunks()
+        onDeleteSelectionEntitiesRequested: canvas.deleteSelectedChunkEntities()
         onDeleteOutsideSelectionRequested: canvas.deleteChunksOutsideSelection()
         onCreateVoidRequested: canvas.clearSelectedChunks()
         onSetBiomeRequested: canvas.openBiomePicker()
@@ -317,6 +318,12 @@ Item {
             return
         if (controller.deleteSelectionAsync())
             operationText = qsTr("Deleting selected chunks…")
+    }
+    function deleteSelectedChunkEntities() {
+        if (!controller || !controller.hasSelection || controller.operationRunning)
+            return
+        if (controller.deleteSelectionEntitiesAsync())
+            operationText = qsTr("Deleting selected chunk entities…")
     }
     function deleteChunksOutsideSelection() {
         if (!controller || !controller.hasSelection || controller.operationRunning || !controller.deleteOutsideAvailable)
