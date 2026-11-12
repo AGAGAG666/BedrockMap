@@ -26,7 +26,7 @@ jobs:
           aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
           version: '6.11.1'
           arch: win64_mingw
-          modules: qtsvg qtshadertools
+          modules: qtshadertools
           tools: tools_mingw1310,qt.tools.win64_mingw1310
       - uses: jurplel/install-qt-action@v4
         with:
@@ -34,7 +34,7 @@ jobs:
           version: '6.11.1'
           target: android
           arch: android_arm64_v8a
-          modules: qtsvg qtshadertools
+          modules: qtshadertools
       - name: Build signed APK
         shell: pwsh
         run: |
