@@ -23,12 +23,14 @@ jobs:
         run: sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0' 'ndk;30.0.16248370'
       - uses: jurplel/install-qt-action@v4
         with:
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
           version: '6.11.1'
           arch: win64_mingw
           modules: qtsvg qtshadertools
           tools: tools_mingw1310,qt.tools.win64_mingw1310
       - uses: jurplel/install-qt-action@v4
         with:
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
           version: '6.11.1'
           target: android
           arch: android_arm64_v8a
