@@ -170,6 +170,7 @@ setting::Settings setting::read() {
                                  ? QStringLiteral("light")
                                  : QStringLiteral("dark");
     loaded.voxelSelectionColor = s.value("voxel_selection_color", loaded.voxelSelectionColor).toString();
+    loaded.limitVoxelPreviewArea = s.value("limit_voxel_preview_area", loaded.limitVoxelPreviewArea).toBool();
     loaded.transparentWater = s.value("transparent_water", loaded.transparentWater).toBool();
     s.endGroup();
 
@@ -307,6 +308,7 @@ QString setting::save(const Settings& values) {
     s.setValue("tile_color_scheme", values.tileColorScheme);
     s.setValue("voxel_selection_color", values.voxelSelectionColor);
     s.setValue("transparent_water", values.transparentWater);
+    s.setValue("limit_voxel_preview_area", values.limitVoxelPreviewArea);
     s.endGroup();
 
     s.beginGroup("Cache");

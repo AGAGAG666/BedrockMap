@@ -116,6 +116,7 @@ namespace setting {
         QString voidMapColor{"#dddddd"};
         QString tileColorScheme{"dark"};  // Checkerboard palette, independent of the UI theme.
         bool transparentWater{true};
+        bool limitVoxelPreviewArea{true};
         QString voxelSelectionColor{"#e641b9dc"};  // 3D preview outline, #AARRGGBB or #RRGGBB.
 
         // Cache

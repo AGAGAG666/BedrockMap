@@ -23,7 +23,8 @@ WorldSession::WorldSession(QString path, QString title, AppContext& context, QOb
       map_controller_(&map_view_state_, context, this),
       chunk_editor_(this),
       voxel_view_(std::make_unique<WorldVolumeSource>(), context, this),
-      global_data_(context, this) {
+      global_data_(context, this),
+      world_entities_(this) {
     connect(&open_watcher_, &QFutureWatcher<OpenResult>::finished, this, &WorldSession::onOpenFinished);
     connect(&save_watcher_, &QFutureWatcher<bool>::finished, this, &WorldSession::onSaveFinished);
     connect(&global_data_, &GlobalDataController::dirtyChanged, this, &WorldSession::refreshDirty);
@@ -53,6 +54,14 @@ WorldSession::WorldSession(QString path, QString title, AppContext& context, QOb
 }
 
 WorldSession::~WorldSession() { close(); }
+
+QVariantList WorldSession::titleBarNavigationSections() const {
+    QVariantList sections{QVariantMap{{QStringLiteral("title"), tr("World entities")},
+        {QStringLiteral("iconName"), QStringLiteral("villager")}, {QStringLiteral("count"), 0},
+        {QStringLiteral("dirty"), false}}};
+    sections.append(global_data_.sections());
+    return sections;
+}
 
 void WorldSession::setWorkspaceSection(int section) {
     if (section < 0 || workspace_section_ == section) return;
@@ -86,6 +95,7 @@ void WorldSession::refreshAddonResources() {
     setIndexLoading(loader_->preloadAllChunkCoords());
     loader_->refreshResources();
     if (terrain_data_) terrain_data_->reload();
+    world_entities_.invalidate();
     chunk_editor_.refreshResources();
     voxel_view_.refreshResources();
 }
@@ -142,6 +152,7 @@ void WorldSession::close() {
     if (save_watcher_.isRunning()) save_watcher_.waitForFinished();
     map_controller_.waitForOperation();
     global_data_.stopAndWait();
+    world_entities_.setLoader(nullptr);
     chunk_editor_.setLoader(nullptr);
     voxel_view_.setLoader(nullptr);
     if (loader_) {
@@ -167,6 +178,7 @@ void WorldSession::onOpenFinished() {
         return;
     }
     loader_ = std::move(opening_loader_);
+    world_entities_.setLoader(loader_.get());
     chunk_editor_.setLoader(loader_.get());
     voxel_view_.setLoader(loader_.get());
     if (terrain_data_) terrain_data_->setLoader(loader_.get());

@@ -57,6 +57,7 @@ class SettingsViewModel final : public QObject {
     Q_PROPERTY(int emptyRegionCacheSize READ emptyRegionCacheSize WRITE setEmptyRegionCacheSize NOTIFY settingsChanged)
     Q_PROPERTY(bool loadGlobalData READ loadGlobalData WRITE setLoadGlobalData NOTIFY settingsChanged)
     Q_PROPERTY(int maxGlobalDataLoadCount READ maxGlobalDataLoadCount WRITE setMaxGlobalDataLoadCount NOTIFY settingsChanged)
+    Q_PROPERTY(bool limitVoxelPreviewArea READ limitVoxelPreviewArea WRITE setLimitVoxelPreviewArea NOTIFY settingsChanged)
     Q_PROPERTY(bool transparentWater READ transparentWater WRITE setTransparentWater NOTIFY settingsChanged)
     Q_PROPERTY(bool gpuGrassHeightEnabled READ gpuGrassHeightEnabled WRITE setGpuGrassHeightEnabled NOTIFY settingsChanged)
     Q_PROPERTY(double gpuGrassHeightBase READ gpuGrassHeightBase WRITE setGpuGrassHeightBase NOTIFY settingsChanged)
@@ -113,6 +114,7 @@ class SettingsViewModel final : public QObject {
     int emptyRegionCacheSize() const { return values_.emptyRegionCacheSize; }
     bool loadGlobalData() const { return values_.loadGlobalData; }
     int maxGlobalDataLoadCount() const { return values_.maxGlobalDataLoadCount; }
+    bool limitVoxelPreviewArea() const { return values_.limitVoxelPreviewArea; }
     bool transparentWater() const { return values_.transparentWater; }
     bool gpuGrassHeightEnabled() const { return values_.gpuGrassHeightEnabled; }
     double gpuGrassHeightBase() const { return values_.gpuGrassHeightBase; }
@@ -171,6 +173,7 @@ class SettingsViewModel final : public QObject {
     void setLoadGlobalData(bool value);
     void setMaxGlobalDataLoadCount(int value);
     void setTransparentWater(bool value);
+    void setLimitVoxelPreviewArea(bool value);
     void setGpuGrassHeightEnabled(bool value);
     void setGpuGrassHeightBase(double value);
     void setGpuGrassHeightRange(double value);

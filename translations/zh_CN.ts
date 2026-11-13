@@ -2831,6 +2831,11 @@
         <source>Marker color</source>
         <translation>标记颜色</translation>
     </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Limit 3D preview to 16 × 16 chunks</source>
+        <translation>限制 3D 预览为 16×16 区块</translation>
+    </message>
 </context>
 <context>
     <name>ShortcutsPage</name>
@@ -3810,6 +3815,11 @@ Current version: %2</source>
         <source>Saving the world failed.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/controller/worldsession.cpp"/>
+        <source>World entities</source>
+        <translation>世界实体</translation>
+    </message>
 </context>
 <context>
     <name>WorldSource</name>
@@ -4043,6 +4053,16 @@ Current version: %2</source>
         <source>Saving world…</source>
         <translation>正在保存世界……</translation>
     </message>
+    <message>
+        <location filename="../src/qml/WorldWorkspace.qml"/>
+        <source>World entities</source>
+        <translation>世界实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldWorkspace.qml"/>
+        <source>Go</source>
+        <translation>跳转</translation>
+    </message>
 </context>
 <context>
     <name>platform</name>
@@ -4132,6 +4152,102 @@ Current version: %2</source>
         <location filename="../src/base/addonresources.cpp"/>
         <source>No resource or behavior pack was found in %1.</source>
         <translation>在 %1 中没有找到资源包或行为包。</translation>
+    </message>
+</context>
+<context>
+    <name>WorldEntityController</name>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Overworld</source>
+        <translation>主世界</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Nether</source>
+        <translation>下界</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>The End</source>
+        <translation>末地</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Dimension %1</source>
+        <translation>维度 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Could not scan world entities: %1</source>
+        <translation>无法扫描世界实体：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Could not scan world entities.</source>
+        <translation>无法扫描世界实体。</translation>
+    </message>
+</context>
+<context>
+    <name>WorldEntityPage</name>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>World entities</source>
+        <translation>世界实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Each region is 16 × 16 blocks. Click a region to locate it on the map.</source>
+        <translation>每个区域为 16×16 格。点击区域可在地图上定位。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Scanning world… %1 keys</source>
+        <translation>正在扫描世界……%1 个键</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>%1 entities in %2 regions</source>
+        <translation>共 %1 个实体，分布在 %2 个区域</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>The world or addon resources changed. Refresh to update the list.</source>
+        <translation>世界或 Addon 资源已变更，请刷新列表。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Skipped %1 unreadable or missing entity records.</source>
+        <translation>已跳过 %1 条无法读取或缺失的实体记录。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>%1 entities</source>
+        <translation>%1 个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Entities</source>
+        <translation>实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>No entities found.</source>
+        <translation>未发现实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Close</source>
+        <translation>关闭</translation>
     </message>
 </context>
 </TS>

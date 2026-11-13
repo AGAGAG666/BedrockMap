@@ -11,6 +11,7 @@
 #include "controller/blockvolumecontroller.h"
 #include "controller/chunkeditorcontroller.h"
 #include "controller/globaldatacontroller.h"
+#include "controller/worldentitycontroller.h"
 #include "controller/mapcontroller.h"
 #include "controller/workspacesession.h"
 #include "model/mapviewstate.h"
@@ -31,6 +32,7 @@ class WorldSession final : public WorkspaceSession {
     Q_PROPERTY(BlockVolumeController* voxelView READ voxelView CONSTANT)
     Q_PROPERTY(TerrainDataProvider* terrainData READ terrainData CONSTANT)
     Q_PROPERTY(GlobalDataController* globalData READ globalData CONSTANT)
+    Q_PROPERTY(WorldEntityController* worldEntities READ worldEntities CONSTANT)
     Q_PROPERTY(int state READ state NOTIFY stateChanged)
     Q_PROPERTY(int progress READ progress NOTIFY progressChanged)
     Q_PROPERTY(bool indexLoading READ indexLoading NOTIFY indexLoadingChanged)
@@ -51,6 +53,7 @@ class WorldSession final : public WorkspaceSession {
     BlockVolumeController* voxelView() { return &voxel_view_; }
     TerrainDataProvider* terrainData() const { return terrain_data_.get(); }
     GlobalDataController* globalData() { return &global_data_; }
+    WorldEntityController* worldEntities() { return &world_entities_; }
     int state() const { return static_cast<int>(state_); }
     int progress() const { return progress_; }
     bool indexLoading() const { return index_loading_; }
@@ -69,7 +72,7 @@ class WorldSession final : public WorkspaceSession {
     [[nodiscard]] bool titleBarSaveVisible() const override { return true; }
     [[nodiscard]] bool titleBarSaveEnabled() const override { return canSave(); }
     [[nodiscard]] bool titleBarNavigationVisible() const override { return true; }
-    [[nodiscard]] QVariantList titleBarNavigationSections() const override { return global_data_.sections(); }
+    [[nodiscard]] QVariantList titleBarNavigationSections() const override;
     [[nodiscard]] int titleBarNavigationIndex() const override { return workspace_section_; }
     [[nodiscard]] bool saveCompletesAsynchronously() const override { return true; }
 
@@ -116,6 +119,7 @@ class WorldSession final : public WorkspaceSession {
     BlockVolumeController voxel_view_;
     std::unique_ptr<TerrainDataProvider> terrain_data_;
     GlobalDataController global_data_;
+    WorldEntityController world_entities_;
     std::unique_ptr<AsyncLevelLoader> loader_;
     std::unique_ptr<AsyncLevelLoader> opening_loader_;
     QFutureWatcher<OpenResult> open_watcher_;

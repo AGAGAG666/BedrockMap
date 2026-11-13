@@ -2,6 +2,9 @@
 #define BEDROCKMAP_CHUNKSTORAGE_H
 
 #include <mutex>
+#include <atomic>
+#include <cstdint>
+#include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
@@ -13,6 +16,18 @@
 #include "nbt.h"
 
 class ChunkCoordsService;
+
+struct WorldEntityRecord {
+    int dimension;
+    float x, y, z;
+    std::string identifier;
+    std::string customName;
+};
+
+struct WorldEntityScanResult {
+    std::vector<WorldEntityRecord> entities;
+    uint64_t skippedRecords{0};
+};
 
 class ChunkStorage {
    public:
@@ -50,6 +65,7 @@ class ChunkStorage {
     bool clearChunkEntities(const bl::chunk_pos& pos);
     std::vector<bl::chunk_pos> pendingChunkPositions() const;
     void replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan);
+    WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop, const std::function<void(uint64_t)>& progress);
 
     /// True when the chunk has an uncommitted edit held in memory (a replacement
     /// or a delete marker) rather than in LevelDB.

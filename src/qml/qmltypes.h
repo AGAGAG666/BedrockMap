@@ -7,6 +7,7 @@
 #include "controller/blockvolumecontroller.h"
 #include "controller/chunkeditorcontroller.h"
 #include "controller/globaldatacontroller.h"
+#include "controller/worldentitycontroller.h"
 #include "controller/mapcontroller.h"
 #include "controller/mapitemcontroller.h"
 #include "controller/nbtdocumentcontroller.h"
@@ -76,6 +77,13 @@ struct GlobalDataControllerQml {
     Q_GADGET
     QML_FOREIGN(GlobalDataController)
     QML_NAMED_ELEMENT(GlobalDataController)
+    QML_UNCREATABLE("Provided by WorldSession")
+};
+
+struct WorldEntityControllerQml {
+    Q_GADGET
+    QML_FOREIGN(WorldEntityController)
+    QML_NAMED_ELEMENT(WorldEntityController)
     QML_UNCREATABLE("Provided by WorldSession")
 };
 

@@ -131,6 +131,9 @@ class AsyncLevelLoader : public QObject {
     }
 
     void loadGlobalData(GlobalNBTLoadResult& result, std::atomic_bool& stop);
+    WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop, const std::function<void(uint64_t)>& progress) {
+        return storage_.scanWorldEntities(stop, progress);
+    }
 
    public:
     /*region cache*/

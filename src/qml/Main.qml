@@ -90,7 +90,7 @@ Window {
             return activeSession ? activeSession.title + (activeSession.dirty ? " *" : "") : qsTr("Open world")
         return window.navigation.pages[currentPage].title
     }
-    // Section 0 is the map; global data sections follow.
+    // Section 0 is the map; world entities and global data sections follow.
     readonly property var workspaceSectionEntries: {
         const entries = [{
                              title: qsTr("Map"),

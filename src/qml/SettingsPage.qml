@@ -339,6 +339,13 @@ Item {
                     SettingGroup {
                         title: qsTr("3D view editor")
                         SettingRow {
+                            label: qsTr("Limit 3D preview to 16 × 16 chunks")
+                            AppSwitch {
+                                checked: App.settings.limitVoxelPreviewArea
+                                onToggled: App.settings.limitVoxelPreviewArea = checked
+                            }
+                        }
+                        SettingRow {
                             label: qsTr("Editor color")
                             AppColorField {
                                 value: App.settings.chunkEditorHighlightColor

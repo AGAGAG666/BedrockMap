@@ -37,6 +37,8 @@ Item {
     property var terrainData: session ? session.terrainData : null
     property var globalSections: session && session.globalData ? session.globalData.sections : []
     property int section: 0
+    readonly property bool coordinateInputValid: xField.text.length > 0 && zField.text.length > 0
+                                                   && xField.acceptableInput && zField.acceptableInput
     property bool restoringSection: false
     property bool compact: Theme.compact
     property bool layerPanelOpen: false
@@ -294,13 +296,26 @@ Item {
         xField.selectAll()
     }
     function jumpToCoordinates() {
-        if (!mapController || xField.text.length === 0 || zField.text.length === 0)
+        if (!mapController || !coordinateInputValid)
             return
         const x = Number(xField.text)
         const z = Number(zField.text)
         if (!Number.isFinite(x) || !Number.isFinite(z))
             return
         mapController.gotoBlock(Math.round(x), Math.round(z))
+        Qt.inputMethod.hide()
+    }
+    function jumpToEntityRegion(dimension, x, z) {
+        if (!mapController || mapController.operationRunning || importPending)
+            return
+        section = 0
+        childPages.reset("root")
+        mapController.setDimension(dimension)
+        xField.text = String(x)
+        zField.text = String(z)
+        mapController.gotoBlock(x, z)
+        setEntitiesEnabled(true)
+        Qt.inputMethod.hide()
     }
     function openChunkEditor(chunkX, chunkZ, dimension) {
         if (!session || !session.chunkEditor)
@@ -366,7 +381,7 @@ Item {
 
     onSessionChanged: restoreSessionState()
     Component.onCompleted: restoreSessionState()
-    onGlobalSectionsChanged: if (session && section >= globalSections.length + 1)
+    onGlobalSectionsChanged: if (session && section >= globalSections.length + 2)
                                  section = 0
     onSectionChanged: {
         if (section !== 0) {
@@ -661,49 +676,70 @@ Item {
                 z: 1
                 readonly property real horizontalPadding: Theme.gapMedium
                 readonly property real verticalPadding: Theme.gapSmall
-                width: navigationRow.width + horizontalPadding * 2
-                height: navigationRow.height + verticalPadding * 2
+                width: Math.min(zoomControls.implicitWidth + coordinateControls.preferredWidth + Theme.gapTiny
+                                + horizontalPadding * 2, parent.width - Theme.gapLarge * 2)
+                height: navigationFlow.childrenRect.height + verticalPadding * 2
                 anchors.top: parent.top
                 anchors.left: parent.left
                 anchors.margins: Theme.gapLarge
-                Row {
-                    id: navigationRow
+                Flow {
+                    id: navigationFlow
                     x: navigationToolbar.horizontalPadding
-                    height: Theme.touch ? Theme.controlHeight : 34
-                    anchors.verticalCenter: parent.verticalCenter
+                    y: navigationToolbar.verticalPadding
+                    width: parent.width - navigationToolbar.horizontalPadding * 2
                     spacing: Theme.gapTiny
-                    AppIconButton {
-                        iconName: "zoom_in"
-                        label: qsTr("Zoom in")
-                        onClicked: canvas.zoomIn()
+                    Row {
+                        id: zoomControls
+                        spacing: Theme.gapTiny
+                        AppIconButton {
+                            iconName: "zoom_in"
+                            label: qsTr("Zoom in")
+                            onClicked: canvas.zoomIn()
+                        }
+                        AppIconButton {
+                            iconName: "zoom_out"
+                            label: qsTr("Zoom out")
+                            onClicked: canvas.zoomOut()
+                        }
+                        AppIconButton {
+                            iconName: "locate"
+                            label: qsTr("Return to origin")
+                            onClicked: canvas.centerOnOrigin()
+                        }
                     }
-                    AppIconButton {
-                        iconName: "zoom_out"
-                        label: qsTr("Zoom out")
-                        onClicked: canvas.zoomOut()
-                    }
-                    AppIconButton {
-                        iconName: "locate"
-                        label: qsTr("Return to origin")
-                        onClicked: canvas.centerOnOrigin()
-                    }
-                    AppTextField {
-                        id: xField
-                        width: workspace.compact ? 72 : 96
-                        placeholderText: "X"
-                        inputMethodHints: Qt.ImhFormattedNumbersOnly
-                        validator: IntValidator {}
-                        anchors.verticalCenter: parent.verticalCenter
-                        onAccepted: workspace.jumpToCoordinates()
-                    }
-                    AppTextField {
-                        id: zField
-                        width: workspace.compact ? 72 : 96
-                        placeholderText: "Z"
-                        inputMethodHints: Qt.ImhFormattedNumbersOnly
-                        validator: IntValidator {}
-                        anchors.verticalCenter: parent.verticalCenter
-                        onAccepted: workspace.jumpToCoordinates()
+                    Row {
+                        id: coordinateControls
+                        readonly property real preferredWidth: (workspace.compact ? 144 : 192)
+                                                               + jumpButton.implicitWidth + spacing * 2
+                        width: Math.min(preferredWidth, navigationFlow.width)
+                        height: Theme.controlHeight
+                        spacing: Theme.gapTiny
+                        AppTextField {
+                            id: xField
+                            width: Math.max(0, (coordinateControls.width - jumpButton.width - coordinateControls.spacing * 2) / 2)
+                            placeholderText: "X"
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            validator: IntValidator {}
+                            anchors.verticalCenter: parent.verticalCenter
+                            onAccepted: workspace.jumpToCoordinates()
+                        }
+                        AppTextField {
+                            id: zField
+                            width: xField.width
+                            placeholderText: "Z"
+                            inputMethodHints: Qt.ImhFormattedNumbersOnly
+                            validator: IntValidator {}
+                            anchors.verticalCenter: parent.verticalCenter
+                            onAccepted: workspace.jumpToCoordinates()
+                        }
+                        AppButton {
+                            id: jumpButton
+                            text: qsTr("Go")
+                            compact: true
+                            anchors.verticalCenter: parent.verticalCenter
+                            enabled: !!workspace.mapController && workspace.coordinateInputValid
+                            onClicked: workspace.jumpToCoordinates()
+                        }
                     }
                 }
             }
@@ -769,11 +805,19 @@ Item {
             }
         }
 
+        WorldEntityPage {
+            anchors.fill: parent
+            visible: workspace.section === 1
+            controller: workspace.session ? workspace.session.worldEntities : null
+            canLocate: !!workspace.mapController && !workspace.mapController.operationRunning && !workspace.importPending
+            onLocateRequested: (dimension, x, z) => workspace.jumpToEntityRegion(dimension, x, z)
+        }
+
         GlobalNbtPage {
             anchors.fill: parent
-            visible: workspace.section >= 1
-            section: workspace.section >= 1 && workspace.section - 1 < workspace.globalSections.length
-                     ? workspace.globalSections[workspace.section - 1] : null
+            visible: workspace.section >= 2
+            section: workspace.section >= 2 && workspace.section - 2 < workspace.globalSections.length
+                     ? workspace.globalSections[workspace.section - 2] : null
         }
     }
 
@@ -837,6 +881,13 @@ Item {
                     height: Theme.borderWidth
                     color: Theme.border
                 }
+                AppListRow {
+                    iconName: "villager"
+                    label: qsTr("World entities")
+                    compact: true
+                    selected: workspace.section === 1
+                    onClicked: workspace.section = 1
+                }
                 Repeater {
                     model: workspace.globalSections
                     delegate: AppListRow {
@@ -847,8 +898,8 @@ Item {
                         dirty: modelData.dirty
                         label: modelData.title
                         compact: true
-                        selected: workspace.section === index + 1
-                        onClicked: workspace.section = index + 1
+                        selected: workspace.section === index + 2
+                        onClicked: workspace.section = index + 2
                     }
                 }
             }

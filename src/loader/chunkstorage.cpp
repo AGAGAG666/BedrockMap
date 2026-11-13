@@ -5,6 +5,10 @@
 #include <leveldb/write_batch.h>
 
 #include <memory>
+#include <cmath>
+#include <limits>
+#include <stdexcept>
+#include "actor.h"
 
 #include "io/documentio.h"
 #include "loguru/loguru.hpp"
@@ -72,6 +76,97 @@ void ChunkStorage::replayChunkIndex(ChunkCoordsService& coords, const std::vecto
         coords.update(pos, raw.has_value());
         if (raw) coords.updateOverview(*raw);
     }
+}
+
+WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& stop, const std::function<void(uint64_t)>& progress) {
+    struct PendingEntities {
+        std::string legacy;
+        std::map<std::string, std::string> actors;
+    };
+    WorldEntityScanResult result;
+    auto* db = level_.db();
+    if (!db) throw std::runtime_error("The world database is closed.");
+    const auto release = [db](const leveldb::Snapshot* snapshot) { if (snapshot) db->ReleaseSnapshot(snapshot); };
+    std::unique_ptr<const leveldb::Snapshot, decltype(release)> snapshot(nullptr, release);
+    std::map<bl::chunk_pos, PendingEntities> pending;
+    {
+        const std::lock_guard lock(mutex_);
+        snapshot.reset(db->GetSnapshot());
+        for (const auto& [pos, cached] : cache_.cache_) {
+            auto& entry = pending[pos];
+            if (cached.shouldDelete || !cached.chunk) continue;
+            entry.legacy = cached.chunk->get_normal_key(bl::chunk_key::Entity);
+            entry.actors = cached.chunk->get_entities();
+        }
+    }
+    auto options = level_.bulk_read_options();
+    options.snapshot = snapshot.get();
+    std::set<int64_t> seen;
+    const auto append = [&](std::string_view raw, int dimension) {
+        if (raw.empty()) return;
+        auto parsed = bl::nbt::parse_all(std::span<const byte_t>(raw.data(), raw.size()));
+        if (!parsed) { ++result.skippedRecords; return; }
+        for (auto* tag : parsed.roots) {
+            std::unique_ptr<bl::nbt::compound_tag> root(tag);
+            bl::actor actor;
+            if (!actor.load_from_nbt_owned(root.get())) { ++result.skippedRecords; continue; }
+            root.release();
+            const auto pos = actor.pos();
+            const auto coordinateValid = [](float value) {
+                return std::isfinite(value) && static_cast<double>(value) >= std::numeric_limits<int>::min() &&
+                       static_cast<double>(value) < static_cast<double>(std::numeric_limits<int>::max()) - 16;
+            };
+            if (!coordinateValid(pos.x) || !coordinateValid(pos.z) || !std::isfinite(pos.y)) {
+                ++result.skippedRecords;
+                continue;
+            }
+            if (!seen.insert(actor.uid()).second) continue;
+            std::string name;
+            if (const auto* custom = actor.root()->get("CustomName")) {
+                if (const auto* value = custom->as<const bl::nbt::string_tag*>()) name = value->value;
+            }
+            result.entities.push_back({dimension, pos.x, pos.y, pos.z, std::string(actor.identifier()), std::move(name)});
+        }
+    };
+    // Pending chunks take precedence over every stored copy of the same actor.
+    for (const auto& [pos, entry] : pending) {
+        if (stop.load()) return result;
+        append(entry.legacy, pos.dim);
+        for (const auto& [uid, raw] : entry.actors) append(raw, pos.dim);
+    }
+    uint64_t scanned = 0;
+    std::unique_ptr<leveldb::Iterator> iterator(db->NewIterator(options));
+    for (iterator->SeekToFirst(); iterator->Valid() && !stop.load(); iterator->Next()) {
+        if ((++scanned % 4096) == 0) progress(scanned);
+        const auto key = iterator->key();
+        const std::string_view keyView(key.data(), key.size());
+        const auto chunkKey = bl::chunk_key::parse(keyView);
+        if (chunkKey.valid() && chunkKey.type == bl::chunk_key::Entity) {
+            if (!pending.contains(chunkKey.cp)) append(std::string_view(iterator->value().data(), iterator->value().size()), chunkKey.cp.dim);
+            continue;
+        }
+        if (!keyView.starts_with(bl::storage_key::actor_digest)) continue;
+        const auto digestKey = bl::actor_digest_key::parse(keyView);
+        if (!digestKey.valid()) { ++result.skippedRecords; continue; }
+        if (pending.contains(digestKey.cp)) continue;
+        bl::actor_digest_list digest;
+        if (!digest.load(std::string_view(iterator->value().data(), iterator->value().size()))) {
+            ++result.skippedRecords;
+            continue;
+        }
+        for (const auto& uid : digest.actor_digests_) {
+            if (stop.load()) return result;
+            std::string raw;
+            const auto status = db->Get(options, std::string(bl::storage_key::actor) + uid, &raw);
+            if (status.IsNotFound()) { ++result.skippedRecords; continue; }
+            if (!status.ok()) throw std::runtime_error(status.ToString());
+            if (raw.empty()) { ++result.skippedRecords; continue; }
+            append(raw, digestKey.cp.dim);
+        }
+    }
+    if (!iterator->status().ok()) throw std::runtime_error(iterator->status().ToString());
+    progress(scanned);
+    return result;
 }
 
 bool ChunkStorage::commit(const std::unordered_map<std::string, std::string>& globalModifies, const bl::nbt::compound_tag* levelDat) {

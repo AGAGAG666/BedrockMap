@@ -207,6 +207,7 @@ BM_SET_INT(setEmptyRegionCacheSize, emptyRegionCacheSize, settingsChanged, 0, 10
 BM_SET_BOOL(setLoadGlobalData, loadGlobalData, settingsChanged)
 BM_SET_INT(setMaxGlobalDataLoadCount, maxGlobalDataLoadCount, settingsChanged, 0, 10000000)
 BM_SET_BOOL(setTransparentWater, transparentWater, settingsChanged)
+BM_SET_BOOL(setLimitVoxelPreviewArea, limitVoxelPreviewArea, settingsChanged)
 BM_SET_BOOL(setGpuGrassHeightEnabled, gpuGrassHeightEnabled, settingsChanged)
 BM_SET_DOUBLE(setGpuGrassHeightBase, gpuGrassHeightBase, settingsChanged, -128.0, 512.0)
 BM_SET_DOUBLE(setGpuGrassHeightRange, gpuGrassHeightRange, settingsChanged, 1.0, 512.0)
