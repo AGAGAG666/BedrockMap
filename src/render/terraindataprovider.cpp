@@ -448,8 +448,7 @@ QVector<ActorSprite> TerrainDataProvider::actorSprites(int min_chunk_x, int min_
     for (int z = region_z0; z <= region_z1; z += constant::RW) {
         for (int x = region_x0; x <= region_x1; x += constant::RW) {
             const region_pos pos{x, z, dimension};
-            bool empty = false;
-            loader_->tryGetRegion(pos, empty);
+            if (loader_->regionState(pos, nullptr) != AsyncLevelLoader::RegionState::Ready) continue;
             const auto region = loader_->regionLease(pos);
             if (!region || !region->valid) continue;
             if (render_style == 0) {
