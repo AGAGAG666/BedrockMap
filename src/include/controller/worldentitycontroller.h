@@ -44,6 +44,11 @@ class WorldEntityController final : public QAbstractListModel {
     qulonglong skippedRecords() const { return skipped_records_; }
     void setLoader(AsyncLevelLoader* loader);
     void invalidate();
+    void setError(const QString& error);
+    quint64 revision() const { return revision_; }
+    std::optional<bl::chunk_pos> regionPosition(int row) const;
+    std::vector<WorldEntityTarget> regionTargets(int row) const;
+    void removeDeletedRegion(int row, quint64 previousRevision);
     void stopAndWait();
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void cancel();

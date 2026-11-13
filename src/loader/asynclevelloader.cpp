@@ -125,6 +125,12 @@ bool AsyncLevelLoader::clearChunkEntities(const bl::chunk_pos& p) {
     return true;
 }
 
+bool AsyncLevelLoader::deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region) {
+    if (!loaded_.load() || !storage_.deleteRegionEntities(targets, region)) return false;
+    emit dirtyChanged();
+    return true;
+}
+
 void AsyncLevelLoader::notifyDirtyChanged() { emit dirtyChanged(); }
 
 bool AsyncLevelLoader::putRawChunk(const bl::raw_chunk& raw) {

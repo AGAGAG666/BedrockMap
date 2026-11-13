@@ -2,6 +2,7 @@
 
 #include <QtConcurrent>
 #include <QDebug>
+#include <algorithm>
 
 #include "base/appcontext.h"
 #include "base/addonresources.h"
@@ -26,6 +27,28 @@ WorldSession::WorldSession(QString path, QString title, AppContext& context, QOb
       global_data_(context, this),
       world_entities_(this) {
     connect(&open_watcher_, &QFutureWatcher<OpenResult>::finished, this, &WorldSession::onOpenFinished);
+    connect(this, &WorldSession::canSaveChanged, this, &WorldSession::entityRegionDeletionChanged);
+    connect(&world_entities_, &WorldEntityController::stateChanged, this, &WorldSession::entityRegionDeletionChanged);
+    connect(&map_controller_, &MapController::operationChanged, this, &WorldSession::entityRegionDeletionChanged);
+    connect(&chunk_editor_, &ChunkEditorController::dirtyChanged, this, &WorldSession::entityRegionDeletionChanged);
+    connect(&chunk_editor_, &ChunkEditorController::loadingChanged, this, &WorldSession::entityRegionDeletionChanged);
+    connect(&map_controller_, &MapController::operationFinished, this, [this] {
+        if (closing_ || deleting_entity_region_ < 0) return;
+        const int row = deleting_entity_region_;
+        deleting_entity_region_ = -1;
+        world_entities_.removeDeletedRegion(row, entity_delete_revision_);
+        emit entityRegionDeletionChanged();
+        emit canSaveChanged();
+    });
+    connect(&map_controller_, &MapController::operationFailed, this, [this](const QString& error) {
+        if (closing_ || deleting_entity_region_ < 0) return;
+        deleting_entity_region_ = -1;
+        world_entities_.invalidate();
+        world_entities_.setError(error);
+        refreshDirty();
+        emit entityRegionDeletionChanged();
+        emit canSaveChanged();
+    });
     connect(&save_watcher_, &QFutureWatcher<bool>::finished, this, &WorldSession::onSaveFinished);
     connect(&global_data_, &GlobalDataController::dirtyChanged, this, &WorldSession::refreshDirty);
     connect(&global_data_, &GlobalDataController::sectionsChanged, this, &WorldSession::titleBarActionsChanged);
@@ -54,6 +77,33 @@ WorldSession::WorldSession(QString path, QString title, AppContext& context, QOb
 }
 
 WorldSession::~WorldSession() { close(); }
+
+bool WorldSession::canDeleteEntityRegion() const {
+    return !closing_ && canSave() && !map_controller_.operationRunning() && !chunk_editor_.dirty() && !chunk_editor_.loading() &&
+           world_entities_.loaded() && !world_entities_.loading() && !world_entities_.stale();
+}
+
+bool WorldSession::deleteEntityRegion(int row) {
+    if (!canDeleteEntityRegion()) return false;
+    const auto region = world_entities_.regionPosition(row);
+    if (!region) return false;
+    auto targets = world_entities_.regionTargets(row);
+    if (targets.empty()) return false;
+    if (chunk_editor_.hasChunk()) {
+        const bl::chunk_pos edited(chunk_editor_.chunkX(), chunk_editor_.chunkZ(), chunk_editor_.dimension());
+        if (std::any_of(targets.begin(), targets.end(), [&](const auto& target) { return target.sourceChunk == edited; }))
+            chunk_editor_.clear();
+    }
+    deleting_entity_region_ = row;
+    entity_delete_revision_ = world_entities_.revision();
+    if (!map_controller_.deleteRegionEntitiesAsync(std::move(targets), *region)) {
+        deleting_entity_region_ = -1;
+        return false;
+    }
+    emit entityRegionDeletionChanged();
+    emit canSaveChanged();
+    return true;
+}
 
 QVariantList WorldSession::titleBarNavigationSections() const {
     QVariantList sections{QVariantMap{{QStringLiteral("title"), tr("World entities")},
@@ -152,6 +202,7 @@ void WorldSession::close() {
     if (save_watcher_.isRunning()) save_watcher_.waitForFinished();
     map_controller_.waitForOperation();
     global_data_.stopAndWait();
+    deleting_entity_region_ = -1;
     world_entities_.setLoader(nullptr);
     chunk_editor_.setLoader(nullptr);
     voxel_view_.setLoader(nullptr);

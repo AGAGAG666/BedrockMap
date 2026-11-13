@@ -7,6 +7,9 @@ import "controls"
 Item {
     id: page
     property var controller
+    property var worldSession
+    readonly property bool deleting: !!worldSession && worldSession.deletingEntityRegion
+    readonly property bool canDelete: !!worldSession && worldSession.canDeleteEntityRegion && canLocate
     property bool canLocate: true
     signal locateRequested(int dimension, int x, int z)
 
@@ -20,7 +23,10 @@ Item {
 
     Connections {
         target: page.controller
-        function onModelAboutToBeReset() { entitiesDialog.close() }
+        function onModelAboutToBeReset() {
+            entitiesDialog.close()
+            deleteRegionDialog.close()
+        }
     }
 
     ColumnLayout {
@@ -41,9 +47,9 @@ Item {
             }
             AppButton {
                 compact: true
-                text: page.controller && page.controller.loading ? qsTr("Cancel") : qsTr("Refresh")
-                iconName: page.controller && page.controller.loading ? "close" : "refresh"
-                enabled: !!page.controller
+                text: page.deleting ? qsTr("Deleting…") : page.controller && page.controller.loading ? qsTr("Cancel") : qsTr("Refresh")
+                iconName: page.deleting ? "" : page.controller && page.controller.loading ? "close" : "refresh"
+                enabled: !!page.controller && !page.deleting
                 onClicked: {
                     if (page.controller.loading)
                         page.controller.cancel()
@@ -93,6 +99,14 @@ Item {
             font.pixelSize: Theme.fontBody
             wrapMode: Text.Wrap
         }
+        Text {
+            Layout.fillWidth: true
+            visible: !!page.worldSession && page.worldSession.chunkEditor.dirty
+            text: qsTr("Apply chunk editor changes before deleting entities.")
+            color: Theme.warning
+            font.pixelSize: Theme.fontBody
+            wrapMode: Text.Wrap
+        }
         ListView {
             id: regions
             Layout.fillWidth: true
@@ -122,7 +136,12 @@ Item {
                     enabled: page.canLocate
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: page.locateRequested(regionRow.regionDimension, regionRow.startX + 8, regionRow.startZ + 8)
+                    onClicked: function(mouse) {
+                        const actionPosition = regionActions.mapFromItem(regionRow, mouse.x, mouse.y)
+                        if (actionPosition.y >= 0 && actionPosition.y < regionActions.height)
+                            return
+                        page.locateRequested(regionRow.regionDimension, regionRow.startX + 8, regionRow.startZ + 8)
+                    }
                 }
                 ColumnLayout {
                     id: regionContent
@@ -130,24 +149,43 @@ Item {
                     y: Theme.gapLarge
                     width: parent.width - Theme.gapLarge * 2
                     spacing: Theme.gapSmall
-                    RowLayout {
+                    Text {
                         Layout.fillWidth: true
-                        Text {
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            text: regionRow.dimensionName + " · " + qsTr("%1 entities").arg(String(regionRow.regionEntityCount))
-                            color: Theme.text
-                            font.pixelSize: Theme.fontSubtitle
-                            wrapMode: Text.Wrap
-                        }
+                        text: regionRow.dimensionName + " · " + qsTr("%1 entities").arg(String(regionRow.regionEntityCount))
+                        color: Theme.text
+                        font.pixelSize: Theme.fontSubtitle
+                        wrapMode: Text.Wrap
+                    }
+                    Flow {
+                        id: regionActions
+                        Layout.fillWidth: true
+                        spacing: Theme.gapSmall
                         AppButton {
+                            width: Math.min(implicitWidth, regionActions.width)
                             text: qsTr("Entities")
                             compact: true
+                            enabled: !page.deleting
                             onClicked: {
                                 entitiesDialog.regionDimension = regionRow.regionDimension
                                 entitiesDialog.title = regionRow.dimensionName + " · X " + regionRow.startX + " · Z " + regionRow.startZ
                                 entitiesDialog.entities = page.controller.entitiesForRegion(regionRow.index)
                                 entitiesDialog.open()
+                            }
+                        }
+                        AppButton {
+                            width: Math.min(implicitWidth, regionActions.width)
+                            text: qsTr("Delete entities")
+                            compact: true
+                            danger: true
+                            enabled: page.canDelete
+                            onClicked: {
+                                deleteRegionDialog.owner = page.worldSession
+                                deleteRegionDialog.rowIndex = regionRow.index
+                                deleteRegionDialog.message = qsTr("Delete all %1 entities in this region?\n%2\nX %3…%4 · Z %5…%6\nTerrain and block entities are kept. Save the world to keep this change.")
+                                    .arg(String(regionRow.regionEntityCount)).arg(regionRow.dimensionName)
+                                    .arg(String(regionRow.startX)).arg(String(regionRow.startX + 15))
+                                    .arg(String(regionRow.startZ)).arg(String(regionRow.startZ + 15))
+                                deleteRegionDialog.open()
                             }
                         }
                     }
@@ -180,6 +218,19 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.Wrap
             }
+        }
+    }
+
+    ConfirmDialog {
+        id: deleteRegionDialog
+        property var owner
+        property int rowIndex: -1
+        title: qsTr("Delete region entities")
+        confirmText: qsTr("Delete entities")
+        danger: true
+        onConfirmed: {
+            if (owner !== page.worldSession || !page.canDelete || !owner.deleteEntityRegion(rowIndex))
+                App.notifications.error(qsTr("Unable to start deletion. Refresh the entity list and try again."))
         }
     }
 

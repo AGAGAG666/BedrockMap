@@ -1372,6 +1372,11 @@
         <source>The region could not be imported.</source>
         <translation>无法导入区域。</translation>
     </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The region entities could not be deleted. Refresh the entity list and try again.</source>
+        <translation>无法删除该区域的实体，请刷新实体列表后重试。</translation>
+    </message>
 </context>
 <context>
     <name>MapFilterPanel</name>
@@ -4278,6 +4283,42 @@ Current version: %2</source>
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Close</source>
         <translation>关闭</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Deleting…</source>
+        <translation>正在删除……</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Apply chunk editor changes before deleting entities.</source>
+        <translation>请先保存区块编辑器中的修改，再删除实体。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete entities</source>
+        <translation>删除实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete region entities</source>
+        <translation>删除区域内的实体</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete all %1 entities in this region?
+%2
+X %3…%4 · Z %5…%6
+Terrain and block entities are kept. Save the world to keep this change.</source>
+        <translation>删除该区域内的全部 %1 个实体？
+%2
+X %3…%4 · Z %5…%6
+保留地形和方块实体，删除后请保存世界。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Unable to start deletion. Refresh the entity list and try again.</source>
+        <translation>无法开始删除，请刷新实体列表后重试。</translation>
     </message>
 </context>
 </TS>

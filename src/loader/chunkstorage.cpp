@@ -57,6 +57,75 @@ bool ChunkStorage::clearChunkEntities(const bl::chunk_pos& pos) {
     return true;
 }
 
+bool ChunkStorage::deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region) {
+    struct Plan {
+        bl::raw_chunk chunk;
+        std::set<std::string> removed;
+    };
+    const std::lock_guard lock(mutex_);
+    std::map<bl::chunk_pos, std::set<int64_t>> byChunk;
+    for (const auto& target : targets) {
+        if (target.sourceChunk.dim != region.dim) return false;
+        byChunk[target.sourceChunk].insert(target.uid);
+    }
+    std::vector<Plan> plans;
+    const double left = region.x * 16.0, top = region.z * 16.0;
+    for (const auto& [pos, ids] : byChunk) {
+        auto raw = [&]() -> std::optional<bl::raw_chunk> {
+            if (cache_.hasChunk(pos)) return cache_.getRawChunk(pos);
+            bl::raw_chunk stored(pos);
+            if (!stored.read(level_)) return std::nullopt;
+            return stored;
+        }();
+        if (!raw) return false;
+        std::vector<std::unique_ptr<bl::actor>> actors;
+        const auto append = [&](std::string_view bytes) {
+            if (bytes.empty()) return true;
+            auto parsed = bl::nbt::parse_all(std::span<const byte_t>(bytes.data(), bytes.size()));
+            if (!parsed) return false;
+            std::vector<std::unique_ptr<bl::nbt::compound_tag>> roots;
+            for (auto* root : parsed.roots) roots.emplace_back(root);
+            for (auto& root : roots) {
+                auto actor = std::make_unique<bl::actor>();
+                if (!actor->load_from_nbt_owned(root.get())) return false;
+                root.release();
+                actors.push_back(std::move(actor));
+            }
+            return true;
+        };
+        if (!append(raw->get_normal_key(bl::chunk_key::Entity))) return false;
+        bl::actor_digest_list digest;
+        if (!digest.load(raw->get_actor_digest())) return false;
+        for (const auto& key : digest.actor_digests_) if (!raw->get_entities().contains(key)) return false;
+        std::set<std::string> previousKeys;
+        for (const auto& [key, bytes] : raw->get_entities()) {
+            previousKeys.insert(key);
+            if (!append(bytes)) return false;
+        }
+        std::set<int64_t> found;
+        std::vector<bl::actor*> remaining;
+        for (const auto& actor : actors) {
+            if (!ids.contains(actor->uid())) { remaining.push_back(actor.get()); continue; }
+            const auto position = actor->pos();
+            if (!(position.x >= left && position.x < left + 16 && position.z >= top && position.z < top + 16)) return false;
+            found.insert(actor->uid());
+        }
+        if (found != ids) return false;
+        raw->set_entities(remaining);
+        std::set<std::string> removed;
+        for (const auto& key : previousKeys) if (!raw->get_entities().contains(key)) removed.insert(key);
+        plans.push_back({std::move(*raw), std::move(removed)});
+    }
+    for (auto& plan : plans) {
+        const auto pos = plan.chunk.pos();
+        cache_.putChunk(pos, plan.chunk);
+        if (!plan.chunk.get_normal_key(bl::chunk_key::Entity).empty()) added_legacy_entity_chunks_.insert(pos);
+        auto& removed = cache_.cache_.at(pos).removedActorUids;
+        removed.insert(plan.removed.begin(), plan.removed.end());
+    }
+    return true;
+}
+
 std::vector<bl::chunk_pos> ChunkStorage::pendingChunkPositions() const {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<bl::chunk_pos> result;
@@ -119,7 +188,7 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
     auto options = level_.bulk_read_options();
     options.snapshot = snapshot.get();
     std::unordered_set<int64_t> seen;
-    const auto append = [&](std::string_view raw, int dimension) {
+    const auto append = [&](std::string_view raw, const bl::chunk_pos& source) {
         if (raw.empty() || stop.load()) return;
         auto parsed = bl::nbt::parse_all(std::span<const byte_t>(raw.data(), raw.size()));
         if (!parsed) { ++result.skippedRecords; return; }
@@ -143,17 +212,17 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
             if (const auto* custom = actor.root()->get("CustomName")) {
                 if (const auto* value = custom->as<const bl::nbt::string_tag*>()) name = value->value;
             }
-            result.entities.push_back({dimension, pos.x, pos.y, pos.z, std::string(actor.identifier()), std::move(name)});
+            result.entities.push_back({source.dim, pos.x, pos.y, pos.z, std::string(actor.identifier()), std::move(name), source, actor.uid()});
             report();
         }
     };
     // Pending chunks take precedence over every stored copy of the same actor.
     for (const auto& [pos, entry] : pending) {
         if (stop.load()) return result;
-        append(entry.legacy, pos.dim);
+        append(entry.legacy, pos);
         for (const auto& [uid, raw] : entry.actors) {
             if (stop.load()) return result;
-            append(raw, pos.dim);
+            append(raw, pos);
         }
     }
     state.stage = WorldEntityScanStage::ModernEntities;
@@ -183,7 +252,7 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
             if (status.IsNotFound()) { ++result.skippedRecords; continue; }
             if (!status.ok()) throw std::runtime_error(status.ToString());
             if (raw.empty()) { ++result.skippedRecords; continue; }
-            append(raw, digestKey.cp.dim);
+            append(raw, digestKey.cp);
         }
     }
     if (!iterator->status().ok()) throw std::runtime_error(iterator->status().ToString());
@@ -203,7 +272,7 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
             const auto status = db->Get(options, bl::chunk_key{bl::chunk_key::Entity, pos}.to_raw(), &raw);
             if (status.IsNotFound()) continue;
             if (!status.ok()) throw std::runtime_error(status.ToString());
-            append(raw, pos.dim);
+            append(raw, pos);
         }
     } else {
         // Without a preloaded index, discover legacy keys while skipping modern actor runs.
@@ -220,7 +289,7 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
             const auto chunkKey = bl::chunk_key::parse(keyView);
             if (chunkKey.valid()) {
                 if (chunkKey.type == bl::chunk_key::Entity && !pending.contains(chunkKey.cp))
-                    append(std::string_view(iterator->value().data(), iterator->value().size()), chunkKey.cp.dim);
+                    append(std::string_view(iterator->value().data(), iterator->value().size()), chunkKey.cp);
             } else if (keyView.starts_with(bl::storage_key::actor)) {
                 iterator->Seek(actorEnd);
                 continue;

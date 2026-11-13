@@ -1372,6 +1372,11 @@
         <source>The region could not be imported.</source>
         <translation>The region could not be imported.</translation>
     </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The region entities could not be deleted. Refresh the entity list and try again.</source>
+        <translation>The region entities could not be deleted. Refresh the entity list and try again.</translation>
+    </message>
 </context>
 <context>
     <name>MapFilterPanel</name>
@@ -4278,6 +4283,42 @@ Current version: %2</translation>
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Close</source>
         <translation>Close</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Deleting…</source>
+        <translation>Deleting…</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Apply chunk editor changes before deleting entities.</source>
+        <translation>Apply chunk editor changes before deleting entities.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete entities</source>
+        <translation>Delete entities</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete region entities</source>
+        <translation>Delete region entities</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Delete all %1 entities in this region?
+%2
+X %3…%4 · Z %5…%6
+Terrain and block entities are kept. Save the world to keep this change.</source>
+        <translation>Delete all %1 entities in this region?
+%2
+X %3…%4 · Z %5…%6
+Terrain and block entities are kept. Save the world to keep this change.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/WorldEntityPage.qml"/>
+        <source>Unable to start deletion. Refresh the entity list and try again.</source>
+        <translation>Unable to start deletion. Refresh the entity list and try again.</translation>
     </message>
 </context>
 </TS>

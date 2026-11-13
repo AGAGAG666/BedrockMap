@@ -38,6 +38,8 @@ class WorldSession final : public WorkspaceSession {
     Q_PROPERTY(bool indexLoading READ indexLoading NOTIFY indexLoadingChanged)
     Q_PROPERTY(bool ready READ ready NOTIFY readyChanged)
     Q_PROPERTY(bool canSave READ canSave NOTIFY canSaveChanged)
+    Q_PROPERTY(bool canDeleteEntityRegion READ canDeleteEntityRegion NOTIFY entityRegionDeletionChanged)
+    Q_PROPERTY(bool deletingEntityRegion READ deletingEntityRegion NOTIFY entityRegionDeletionChanged)
     Q_PROPERTY(qulonglong scannedKeys READ scannedKeys NOTIFY indexProgressChanged)
     Q_PROPERTY(qulonglong indexedChunks READ indexedChunks NOTIFY indexProgressChanged)
     Q_PROPERTY(QString errorCode READ errorCode NOTIFY errorCodeChanged)
@@ -60,9 +62,12 @@ class WorldSession final : public WorkspaceSession {
     bool failed() const { return state_ == State::Failed; }
     bool ready() const { return state_ == State::Succeeded && !index_loading_; }
     bool canSave() const {
-        return ready() && !index_loading_ && !saving() && !voxel_view_.loading() && !voxel_view_.deleting() && !voxel_view_.importing() &&
-               !voxel_view_.importPreviewActive() && !voxel_view_.copying();
+        return ready() && !index_loading_ && !saving() && deleting_entity_region_ < 0 && !voxel_view_.loading() &&
+               !voxel_view_.deleting() && !voxel_view_.importing() && !voxel_view_.importPreviewActive() && !voxel_view_.copying();
     }
+    bool canDeleteEntityRegion() const;
+    bool deletingEntityRegion() const { return deleting_entity_region_ >= 0; }
+    Q_INVOKABLE bool deleteEntityRegion(int row);
     qulonglong scannedKeys() const { return scanned_keys_; }
     qulonglong indexedChunks() const { return indexed_chunks_; }
     QString errorCode() const { return error_code_; }
@@ -92,6 +97,7 @@ class WorldSession final : public WorkspaceSession {
     void indexLoadingChanged();
     void readyChanged();
     void canSaveChanged();
+    void entityRegionDeletionChanged();
     void indexProgressChanged();
     void errorCodeChanged();
     void workspaceSectionChanged();
@@ -135,6 +141,8 @@ class WorldSession final : public WorkspaceSession {
     int workspace_section_{0};
     QString workspace_route_{QStringLiteral("root")};
     bool closing_{false};
+    int deleting_entity_region_{-1};
+    quint64 entity_delete_revision_{0};
 };
 
 #endif

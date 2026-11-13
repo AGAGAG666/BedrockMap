@@ -23,6 +23,13 @@ struct WorldEntityRecord {
     float x, y, z;
     std::string identifier;
     std::string customName;
+    bl::chunk_pos sourceChunk;
+    int64_t uid;
+};
+
+struct WorldEntityTarget {
+    bl::chunk_pos sourceChunk;
+    int64_t uid;
 };
 
 enum class WorldEntityScanStage { Preparing, ModernEntities, LegacyEntities, Grouping, Summaries };
@@ -75,6 +82,7 @@ class ChunkStorage {
     void putMissing(const bl::chunk_pos& pos);
     void putRawChunk(const bl::raw_chunk& raw);
     bool clearChunkEntities(const bl::chunk_pos& pos);
+    bool deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region);
     std::vector<bl::chunk_pos> pendingChunkPositions() const;
     void replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan);
     WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop,

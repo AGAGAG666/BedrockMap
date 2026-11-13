@@ -173,6 +173,7 @@ class AsyncLevelLoader : public QObject {
 
     bool deleteChunk(const bl::chunk_pos& p, bool notify_dirty = true);
     bool clearChunkEntities(const bl::chunk_pos& p);
+    bool deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region);
     /// Emit one aggregated dirty notification after a bulk mutation.
     void notifyDirtyChanged();
     bool putRawChunk(const bl::raw_chunk& raw);

@@ -809,6 +809,7 @@ Item {
             anchors.fill: parent
             visible: workspace.section === 1
             controller: workspace.session ? workspace.session.worldEntities : null
+            worldSession: workspace.session
             canLocate: !!workspace.mapController && !workspace.mapController.operationRunning && !workspace.importPending
             onLocateRequested: (dimension, x, z) => workspace.jumpToEntityRegion(dimension, x, z)
         }

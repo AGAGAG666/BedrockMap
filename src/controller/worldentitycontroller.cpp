@@ -75,6 +75,34 @@ QVariantList WorldEntityController::entitiesForRegion(int row) const {
     return entities;
 }
 
+std::optional<bl::chunk_pos> WorldEntityController::regionPosition(int row) const {
+    if (row < 0 || row >= rowCount()) return std::nullopt;
+    return regions_[row].pos;
+}
+
+std::vector<WorldEntityTarget> WorldEntityController::regionTargets(int row) const {
+    std::vector<WorldEntityTarget> targets;
+    if (row < 0 || row >= rowCount()) return targets;
+    targets.reserve(regions_[row].entities.size());
+    for (const auto& entity : regions_[row].entities) targets.push_back({entity.sourceChunk, entity.uid});
+    return targets;
+}
+
+void WorldEntityController::removeDeletedRegion(int row, quint64 previousRevision) {
+    if (row < 0 || row >= rowCount()) return;
+    beginRemoveRows({}, row, row);
+    entity_count_ -= regions_[row].entities.size();
+    regions_.erase(regions_.begin() + row);
+    endRemoveRows();
+    stale_ = revision_ != previousRevision + 1;
+    emit stateChanged();
+}
+
+void WorldEntityController::setError(const QString& error) {
+    error_ = error;
+    emit stateChanged();
+}
+
 QString WorldEntityController::progressText() const {
     if (loading_ && stop_.load()) return tr("Cancelling scan…");
     const auto processed = QString::number(progress_.processed);

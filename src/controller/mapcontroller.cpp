@@ -388,6 +388,17 @@ bool MapController::deleteSelectionEntitiesAsync() {
     });
 }
 
+bool MapController::deleteRegionEntitiesAsync(std::vector<WorldEntityTarget> targets, const bl::chunk_pos& region) {
+    if (targets.empty() || region_import_.active() || region_import_.loading()) return false;
+    QRegion affected(QRect(region.x, region.z, 1, 1));
+    for (const auto& target : targets) affected += QRect(target.sourceChunk.x, target.sourceChunk.z, 1, 1);
+    return startRegionOperation([targets = std::move(targets), region](AsyncLevelLoader& loader, const QRegion&, int) {
+        const bool success = loader.deleteRegionEntities(targets, region);
+        return SelectionOperationResult::refreshSelection(success, success ? QString() :
+            MapController::tr("The region entities could not be deleted. Refresh the entity list and try again."));
+    }, affected, region.dim);
+}
+
 bool MapController::deleteOutsideSelectionAsync() {
     if (!deleteOutsideAvailable()) return false;
     return startSelectionOperation([](AsyncLevelLoader& loader, const QRegion& region, int dimension) {

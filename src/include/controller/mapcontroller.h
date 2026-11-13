@@ -21,6 +21,7 @@
 #include "model/mapviewstate.h"
 
 class AsyncLevelLoader;
+struct WorldEntityTarget;
 class AppContext;
 
 /// Commands and observable state for one map view.
@@ -97,6 +98,7 @@ class MapController final : public QObject {
     Q_INVOKABLE void cancelSelectionDrag();
     Q_INVOKABLE bool deleteSelectionAsync();
     Q_INVOKABLE bool deleteSelectionEntitiesAsync();
+    bool deleteRegionEntitiesAsync(std::vector<WorldEntityTarget> targets, const bl::chunk_pos& region);
     Q_INVOKABLE bool deleteOutsideSelectionAsync();
     Q_INVOKABLE bool createVoidSelectionAsync();
     Q_INVOKABLE bool setSelectionBiomeAsync(int biome);
