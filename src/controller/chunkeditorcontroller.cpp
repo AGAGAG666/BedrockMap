@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "actor.h"
+#include "base/resourcemanager.h"
 #include "bedrock_key.h"
 #include "chunk.h"
 #include "color.h"
@@ -82,11 +83,12 @@ namespace {
                                             : QStringLiteral("qrc:/bedrockmap/icons/what.png");
     }
 
-    NbtItemPresentation entityPresentation(const bl::nbt::compound_tag* root, int index) {
-        const QString identifier = normalizedNbtName(stringTagValue(root, {"identifier", "ActorIdentifier"}));
-        const QString label = identifier.isEmpty() ? QString::number(index) : identifier;
-        const QString icon = identifier.isEmpty() ? QStringLiteral("qrc:/bedrockmap/icons/what.png") : nbtIcon("entity", identifier);
-        return {label, icon};
+    NbtItemPresentation entityPresentation(const bl::nbt::compound_tag* root, int index, const ResourceManager* resources) {
+        const QString identifier = stringTagValue(root, {"identifier", "ActorIdentifier"});
+        if (identifier.isEmpty()) return {QString::number(index), QStringLiteral("qrc:/bedrockmap/icons/what.png")};
+        const QString customName = stringTagValue(root, {"CustomName", "custom_name"});
+        if (resources) return {resources->actorLabel(identifier, customName), resources->actorIconUrl(identifier)};
+        return {identifier, nbtIcon("entity", normalizedNbtName(identifier))};
     }
 
     NbtItemPresentation blockEntityPresentation(const bl::nbt::compound_tag* root, int index) {
@@ -100,7 +102,9 @@ namespace {
     QColor toQColor(bl::color color) { return QColor(color.r, color.g, color.b); }
 
     std::shared_ptr<VoxelSceneData> buildVoxelScene(const bl::raw_chunk& raw, const std::function<void(int)>& reportProgress,
-                                                    ChunkTerrainSnapshot* terrain = nullptr) {
+                                                    ChunkTerrainSnapshot* terrain = nullptr, const ResourceManager* resources = nullptr) {
+        const auto resourceSnapshot = resources ? resources->snapshot() : nullptr;
+        resources = resourceSnapshot.get();
         auto chunk = std::make_unique<bl::chunk>(raw.pos());
         if (!chunk->load_from_raw_chunk(raw, bl::chunk_load_policy::Terrain | bl::chunk_load_policy::Others)) return {};
         const auto [worldMinY, worldMaxY] = raw.get_y_range();
@@ -129,11 +133,12 @@ namespace {
                             if (!rawBlock) break;
                             const auto blockInfo = chunk->get_block_with_color(x, worldY, z, blockLayer);
                             const auto blended = bl::blend_color_with_biome(blockInfo.name, blockInfo.color, biome);
+                            const auto addonColor = resources ? resources->addonBlockColor(blockInfo.name) : std::nullopt;
                             const bool visibleBlock = blockInfo.name != "minecraft:air" && blockInfo.name != "minecraft:unknown";
                             cell.blocks.push_back(ChunkTerrainBlockSnapshot{
                                 QString::fromStdString(blockInfo.name),
                                 QString::fromStdString(rawBlock->to_readable_string()),
-                                visibleBlock ? toQColor(blended) : QColor(0, 0, 0, 0),
+                                visibleBlock ? (addonColor ? *addonColor : toQColor(blended)) : QColor(0, 0, 0, 0),
                             });
                         }
                     }
@@ -142,7 +147,7 @@ namespace {
             if ((worldY - worldMinY) % 32 == 0) reportProgress(35 + (worldY - worldMinY) * 25 / std::max(1, layerCount));
         }
         int firstWorldY = 0;
-        auto grid = voxel_mesh::createVoxelDataFromChunks({{chunk.get()}}, {}, &firstWorldY);
+        auto grid = voxel_mesh::createVoxelDataFromChunks({{chunk.get()}}, {}, &firstWorldY, resources);
         const auto bounds = voxel_mesh::fullBounds(grid);
         if (!bounds) return {};
         reportProgress(65);
@@ -211,7 +216,7 @@ namespace {
                 appendStatistic(*snapshot->statistics, QStringLiteral("Entity[%1]").arg(hexKey), data);
             }
             snapshot->terrain = std::make_shared<ChunkTerrainSnapshot>();
-            snapshot->voxelScene = buildVoxelScene(*raw, reportProgress, snapshot->terrain.get());
+            snapshot->voxelScene = buildVoxelScene(*raw, reportProgress, snapshot->terrain.get(), loader->resources());
             snapshot->ok = true;
         } catch (const std::exception& error) {
             snapshot->error = QString::fromUtf8(error.what());
@@ -253,6 +258,16 @@ void ChunkEditorController::setLoader(AsyncLevelLoader* loader) {
     if (watcher_.isRunning()) watcher_.waitForFinished();
     clear();
     loader_ = loader;
+}
+
+void ChunkEditorController::refreshResources() {
+    entities_document_.refreshPresentations();
+    if (loading()) {
+        resource_refresh_pending_ = true;
+        return;
+    }
+    resource_refresh_pending_ = false;
+    if (has_chunk_ && !dirty()) openChunk(chunk_x_, chunk_z_, dimension_);
 }
 
 void ChunkEditorController::openChunk(int chunkX, int chunkZ, int dimension) {
@@ -481,7 +496,9 @@ void ChunkEditorController::finishLoad() {
 
     entities_document_.loadMemory(
         cloneRoots(snapshot->entities), {}, tr("Entities"),
-        [](const bl::nbt::compound_tag* root, int index, const QString&) { return entityPresentation(root, index); });
+        [resources = loader_ ? loader_->resources() : nullptr](const bl::nbt::compound_tag* root, int index, const QString&) {
+            return entityPresentation(root, index, resources);
+        });
     block_entities_document_.loadMemory(
         cloneRoots(snapshot->blockEntities), {}, tr("Block entities"),
         [](const bl::nbt::compound_tag* root, int index, const QString&) { return blockEntityPresentation(root, index); });
@@ -492,6 +509,7 @@ void ChunkEditorController::finishLoad() {
     emit statisticsChanged();
     emit statusChanged();
     emit voxelChanged();
+    if (resource_refresh_pending_) refreshResources();
 }
 
 void ChunkEditorController::setLoading(bool loading) {

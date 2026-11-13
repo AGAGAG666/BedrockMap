@@ -7,6 +7,7 @@
 #include <iterator>
 #include <limits>
 
+#include "base/resourcemanager.h"
 #include "chunk.h"
 #include "color.h"
 #include "mcstructure.h"
@@ -101,7 +102,9 @@ namespace {
 }  // namespace
 
 namespace voxel_mesh {
-    VoxelGrid createVoxelDataFromMcstructure(const bl::mcstructure& structure) {
+    VoxelGrid createVoxelDataFromMcstructure(const bl::mcstructure& structure, const ResourceManager* resources) {
+        const auto resourceSnapshot = resources ? resources->snapshot() : nullptr;
+        resources = resourceSnapshot.get();
         const int sx = structure.size_x();
         const int sy = structure.size_y();
         const int sz = structure.size_z();
@@ -127,6 +130,12 @@ namespace voxel_mesh {
                     if (!block) continue;
                     if (block->name == "minecraft:air" || block->name == "minecraft:unknown") continue;
 
+                    if (resources) {
+                        if (const auto color = resources->addonBlockColor(block->name)) {
+                            data[y][x][z] = Voxel(*color, color->alpha() < 255);
+                            continue;
+                        }
+                    }
                     const auto baseColor = bl::get_block_by_name_tag(block->name);
                     // mcstructure files do not carry biome data; use plains as a stable preview biome.
                     const auto c = bl::blend_color_with_biome(block->name, baseColor, bl::biome::plains);
@@ -338,7 +347,9 @@ namespace voxel_mesh {
     }
 
     VoxelGrid createVoxelDataFromChunks(const std::vector<std::vector<bl::chunk*>>& chunks, const std::function<void(int)>& reportProgress,
-                                        int* firstWorldY) {
+                                        int* firstWorldY, const ResourceManager* resources) {
+        const auto resourceSnapshot = resources ? resources->snapshot() : nullptr;
+        resources = resourceSnapshot.get();
         if (firstWorldY) *firstWorldY = 0;
         if (chunks.empty()) return {};
         constexpr int chunkWidth = 16;
@@ -377,8 +388,15 @@ namespace voxel_mesh {
                         for (int z = 0; z < chunkWidth; ++z) {
                             const auto info = chunk->get_block_with_color(x, worldY, z);
                             if (info.name == "minecraft:unknown" || info.name == "minecraft:air") continue;
-                            const auto color = bl::blend_color_with_biome(info.name, info.color, chunk->get_biome(x, worldY, z));
                             auto& voxel = layer[chunkX * chunkWidth + x][chunkZ * chunkWidth + z];
+                            if (resources) {
+                                if (const auto addonColor = resources->addonBlockColor(info.name)) {
+                                    voxel.color = *addonColor;
+                                    voxel.transparent = addonColor->alpha() < 255;
+                                    continue;
+                                }
+                            }
+                            const auto color = bl::blend_color_with_biome(info.name, info.color, chunk->get_biome(x, worldY, z));
                             voxel.color = QColor(color.r, color.g, color.b, color.a);
                             voxel.transparent = voxel.color.alpha() < 255;
                         }

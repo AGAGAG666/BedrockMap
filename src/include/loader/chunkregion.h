@@ -59,6 +59,7 @@ struct ChunkRegion {
     /// instead of the heap address so recycled allocator addresses cannot make a
     /// stale tile cache entry look current.
     quint64 revision{0};
+    std::shared_ptr<const ResourceManager> resourceSnapshot;
     std::unordered_map<const QImage*, std::vector<bl::vec3>> actors_;             // for render mode 0
     std::map<bl::chunk_pos, std::map<const QImage*, ActorCount>> actors_counts_;  // for render mode 1
     std::vector<bl::hardcoded_spawn_area> HSAs_;

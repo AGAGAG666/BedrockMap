@@ -30,6 +30,7 @@ class BlockVolumeController final : public VoxelSceneController {
     void load(const QUrl& url);
     void loadBytes(const QByteArray& raw);
     void clearPreview();
+    void refreshResources();
     Q_INVOKABLE void openArea(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, int dimension);
     Q_INVOKABLE bool importStructure(const QUrl& url);
     Q_INVOKABLE bool pasteStructure();
@@ -80,6 +81,8 @@ class BlockVolumeController final : public VoxelSceneController {
     void clearImport();
     void setVoxelProgress(int progress);
 
+    void applyResourceRefresh();
+    bool resource_refresh_pending_{false};
     std::unique_ptr<BlockVolumeSource> source_;
     NbtDocumentController* document_;
     AppContext& context_;

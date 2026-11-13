@@ -188,6 +188,18 @@ std::unique_ptr<bl::nbt::compound_tag> NbtDocumentController::itemCopy(int index
 
 void NbtDocumentController::setStoragePolicy(NbtStoragePolicy policy) { storage_ = std::move(policy); }
 
+void NbtDocumentController::refreshPresentations() {
+    if (!storage_.presenter) return;
+    for (size_t i = 0; i < items_.size(); ++i) {
+        auto& item = items_[i];
+        if (!item.root) continue;
+        const auto presentation = storage_.presenter(item.root.get(), static_cast<int>(i), item.raw_key);
+        item.label = presentation.label.isEmpty() ? QString::number(i) : presentation.label;
+        item.icon = presentation.icon;
+    }
+    emit itemsChanged();
+}
+
 void NbtDocumentController::setKeyResolver(NbtKeyResolver resolver) { storage_.keyResolver = std::move(resolver); }
 
 NbtLevelDbPlan NbtDocumentController::prepareLevelDbChanges() {

@@ -5,11 +5,14 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "bedrock_level.h"
 #include "chunk.h"
 #include "loader/rawchunkcache.h"
 #include "nbt.h"
+
+class ChunkCoordsService;
 
 class ChunkStorage {
    public:
@@ -45,6 +48,8 @@ class ChunkStorage {
     void putMissing(const bl::chunk_pos& pos);
     void putRawChunk(const bl::raw_chunk& raw);
     bool clearChunkEntities(const bl::chunk_pos& pos);
+    std::vector<bl::chunk_pos> pendingChunkPositions() const;
+    void replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan);
 
     /// True when the chunk has an uncommitted edit held in memory (a replacement
     /// or a delete marker) rather than in LevelDB.

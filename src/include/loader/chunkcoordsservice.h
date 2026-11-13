@@ -21,7 +21,7 @@ class ChunkCoordsService : public QObject {
     ChunkCoordsService();
     ~ChunkCoordsService();
 
-    void start(bl::bedrock_level& level, std::function<void()> ready, bool overview = false);
+    void start(bl::bedrock_level& level, std::function<void()> ready, bool overview = false, const ResourceManager* resources = nullptr);
     void close();
 
     bool ready() const { return ready_.load(std::memory_order_acquire); }
@@ -32,7 +32,7 @@ class ChunkCoordsService : public QObject {
     /// it finishes.
     void update(const bl::chunk_pos& pos, bool present);
     void updateOverview(const bl::raw_chunk& raw) {
-        if (overviewEnabled()) index_.updateOverview(raw);
+        if (overviewEnabled()) index_.updateOverview(raw, resources_);
     }
     bool overviewEnabled() const { return overview_enabled_.load(std::memory_order_acquire); }
 
@@ -46,6 +46,7 @@ class ChunkCoordsService : public QObject {
     void preloadFinished();
 
    private:
+    const ResourceManager* resources_{nullptr};
     QThreadPool preload_pool_;
     std::atomic_bool stop_{false};
     std::atomic_bool ready_{false};

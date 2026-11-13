@@ -1,4 +1,6 @@
 #include "loader/chunkstorage.h"
+#include "loader/chunkcoordsservice.h"
+#include <set>
 
 #include <leveldb/write_batch.h>
 
@@ -47,6 +49,29 @@ bool ChunkStorage::clearChunkEntities(const bl::chunk_pos& pos) {
     if (!raw) return true;
     cache_.clearChunkEntities(pos, std::move(*raw));
     return true;
+}
+
+std::vector<bl::chunk_pos> ChunkStorage::pendingChunkPositions() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<bl::chunk_pos> result;
+    for (const auto& [pos, entry] : cache_.cache_) result.push_back(pos);
+    return result;
+}
+
+void ChunkStorage::replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::set<bl::chunk_pos> positions(beforeScan.begin(), beforeScan.end());
+    for (const auto& [pos, entry] : cache_.cache_) positions.insert(pos);
+    for (const auto& pos : positions) {
+        std::optional<bl::raw_chunk> raw;
+        if (cache_.hasChunk(pos)) raw = cache_.getRawChunk(pos);
+        else {
+            bl::raw_chunk stored(pos);
+            if (stored.read(level_)) raw = std::move(stored);
+        }
+        coords.update(pos, raw.has_value());
+        if (raw) coords.updateOverview(*raw);
+    }
 }
 
 bool ChunkStorage::commit(const std::unordered_map<std::string, std::string>& globalModifies, const bl::nbt::compound_tag* levelDat) {

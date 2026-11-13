@@ -22,6 +22,8 @@
 #include "base/config.h"
 #include "bedrock_key.h"
 
+class ResourceManager;
+
 namespace bl {
     class bedrock_level;
     class raw_chunk;
@@ -86,6 +88,7 @@ struct ChunkCoordsLoadStats {
 struct ChunkCoordsLoadOptions {
     /// Sample one block per chunk on a second worker and store overview colors.
     bool build_overview{false};
+    const ResourceManager* resources{nullptr};
     std::size_t sampling_queue_bytes{64 * 1024 * 1024};
 };
 
@@ -201,7 +204,7 @@ class ChunkCoordsIndex {
     [[nodiscard]] QImage overviewImage(int dimension, const QRect& chunks, const QSize& pixels) const;
     [[nodiscard]] std::vector<bl::chunk_pos> terrainRegions(int dimension, const QRect& regions) const;
     void updateOverview(const bl::chunk_pos& pos, QRgb color, bool edited = true);
-    void updateOverview(const bl::raw_chunk& raw);
+    void updateOverview(const bl::raw_chunk& raw, const ResourceManager* resources = nullptr);
     [[nodiscard]] quint64 overviewRevision() const { return overview_revision_.load(std::memory_order_acquire); }
 
     /// Replay queued writes and enter interactive mode atomically.

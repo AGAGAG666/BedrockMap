@@ -1,8 +1,11 @@
 #include "controller/worldsession.h"
 
 #include <QtConcurrent>
+#include <QDebug>
 
 #include "base/appcontext.h"
+#include "base/addonresources.h"
+#include "base/resourcemanager.h"
 #include "base/config.h"
 #include "base/platform.h"
 #include "base/worldenv.h"
@@ -15,6 +18,7 @@ WorldSession::WorldSession(QString path, QString title, AppContext& context, QOb
     : WorkspaceSession(QStringLiteral("world"), platform::normalizeLocalPath(path),
                        title.isEmpty() ? QStringLiteral("World workspace") : std::move(title), parent),
       context_(context),
+      world_resources_(std::make_unique<ResourceManager>(&context.resources())),
       map_view_state_(this),
       map_controller_(&map_view_state_, context, this),
       chunk_editor_(this),
@@ -77,6 +81,15 @@ void WorldSession::ensureTerrainData() {
     terrain_data_->setActive(active());
 }
 
+void WorldSession::refreshAddonResources() {
+    if (!loader_ || !loader_->isOpen() || closing_) return;
+    setIndexLoading(loader_->preloadAllChunkCoords());
+    loader_->refreshResources();
+    if (terrain_data_) terrain_data_->reload();
+    chunk_editor_.refreshResources();
+    voxel_view_.refreshResources();
+}
+
 void WorldSession::open() {
     if (closing_) return;
     if (state_ == State::Running || state_ == State::Succeeded) return;
@@ -90,7 +103,7 @@ void WorldSession::open() {
     setIndexProgress(0, 0);
     setIndexLoading(setting::current().preloadAllChunkCoords);
     setState(State::Running);
-    opening_loader_ = std::make_unique<AsyncLevelLoader>(&context_.resources());
+    opening_loader_ = std::make_unique<AsyncLevelLoader>(world_resources_.get());
     opening_loader_->setPreloadAllChunkCoords(setting::current().preloadAllChunkCoords);
     opening_loader_->setChunkOverviewEnabled(setting::current().chunkOverviewEnabled);
     connect(opening_loader_.get(), &AsyncLevelLoader::chunkCoordsPreloadProgress, this,
@@ -104,7 +117,11 @@ void WorldSession::open() {
     const auto native_path = path().toStdString();
     const auto mode = setting::current().leveldbXorMode;
     const auto configured_key = setting::current().leveldbXorKey.toStdString();
-    open_watcher_.setFuture(QtConcurrent::run([loader, native_path, mode, configured_key] {
+    open_watcher_.setFuture(QtConcurrent::run([loader, resources = world_resources_.get(), native_path, mode, configured_key] {
+        const auto catalog = AddonResources::load({}, QString::fromStdString(native_path));
+        for (const auto& warning : catalog->warnings) qWarning().noquote() << warning;
+        if (!catalog->error.isEmpty()) qWarning().noquote() << catalog->error;
+        resources->setAddonResources(catalog);
         auto env = std::make_shared<platform::WorldEnv>();
         const bool useConfiguredKey = mode != 0 && (mode == 1 || leveldb_xor::isEncrypted(QString::fromStdString(native_path)));
         const auto key = useConfiguredKey ? configured_key : std::string{};

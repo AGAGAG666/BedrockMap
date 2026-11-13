@@ -64,6 +64,7 @@ class AsyncLevelLoader : public QObject {
     // AsyncLevelLoader and its region scheduler/cache are UI-thread owned.
     // Chunk tasks run on the scheduler pool while the loader remains open.
     explicit AsyncLevelLoader(ResourceManager* resources = nullptr);
+    [[nodiscard]] ResourceManager* resources() const { return resources_; }
 
     ~AsyncLevelLoader() override;
 
@@ -98,6 +99,7 @@ class AsyncLevelLoader : public QObject {
     const MapFilter& filter() const { return this->map_filter_; }
     /// Drop all baked regions and restart work with the current filter.
     void reloadFilteredRegions();
+    void refreshResources();
 
     void setTransparentVoid(bool v) { transparent_void_.store(v); }
 
@@ -204,6 +206,7 @@ class AsyncLevelLoader : public QObject {
     ChunkRegion* peekRegion(const region_pos& p, bool& empty);
 
    private:
+    ResourceManager* resources_{nullptr};
     std::atomic_bool loaded_{false};
     ChunkStorage storage_;
     RegionCacheManager cache_manager_;

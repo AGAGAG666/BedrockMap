@@ -21,6 +21,8 @@ namespace bl {
     class mcstructure;
 }  // namespace bl
 
+class ResourceManager;
+
 struct Voxel {
     QColor color;
     bool transparent{false};
@@ -64,7 +66,7 @@ struct VoxelSelectionMesh {
 
 namespace voxel_mesh {
     [[nodiscard]] bool exportGlb(const VoxelMeshBuffers& mesh, const QUrl& url, QString* errorMessage = nullptr);
-    [[nodiscard]] VoxelGrid createVoxelDataFromMcstructure(const bl::mcstructure& structure);
+    [[nodiscard]] VoxelGrid createVoxelDataFromMcstructure(const bl::mcstructure& structure, const ResourceManager* resources = nullptr);
     [[nodiscard]] QPointF projectSelectionPoint(const VoxelSelectionView& view, const QVector3D& point, bool* visible = nullptr);
     [[nodiscard]] QVector3D selectionHandlePosition(const bl::block_box& bounds, VoxelSelectionHandle handle, float voxelSize = 1.0f);
     [[nodiscard]] int selectionHandleAxisIndex(VoxelSelectionHandle handle);
@@ -81,7 +83,8 @@ namespace voxel_mesh {
     // Combine chunks indexed by [X][Z] before meshing so face culling and AO
     // see adjacent chunks. Trim only empty outer Y layers; preserve internal gaps.
     [[nodiscard]] VoxelGrid createVoxelDataFromChunks(const std::vector<std::vector<bl::chunk*>>& chunks,
-                                                      const std::function<void(int)>& reportProgress, int* firstWorldY = nullptr);
+                                                      const std::function<void(int)>& reportProgress, int* firstWorldY = nullptr,
+                                                      const ResourceManager* resources = nullptr);
     [[nodiscard]] std::optional<bl::block_box> fullBounds(const VoxelGrid& grid);
     [[nodiscard]] bool hasNeighborInBounds(const VoxelGrid& grid, int layer, int x, int z, int dy, int dx, int dz,
                                            const bl::block_box& bounds, VoxelMeshOcclusionMode mode);

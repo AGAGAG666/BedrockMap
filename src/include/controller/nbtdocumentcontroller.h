@@ -99,6 +99,7 @@ class NbtDocumentController : public QObject {
     /// LevelDB identity separately from the visible tree key.
     void loadMemory(std::vector<std::unique_ptr<bl::nbt::compound_tag>> roots, const QStringList& rawKeys, const QString& title = {},
                     const NbtItemPresenter& presenter = {});
+    void refreshPresentations();
     void setKeyResolver(NbtKeyResolver resolver);
     void setStoragePolicy(NbtStoragePolicy policy);
     void setSingleRecord(bool single) { storage_.singleRecord = single; }

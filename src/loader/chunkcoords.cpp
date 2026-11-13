@@ -1,5 +1,7 @@
 #include "loader/chunkcoords.h"
 
+#include "base/resourcemanager.h"
+
 #include <leveldb/db.h>
 #include <leveldb/iterator.h>
 #include <leveldb/slice.h>
@@ -56,9 +58,12 @@ namespace {
 
     using SamplingClock = std::chrono::steady_clock;
 
-    QRgb overviewColor(const chunkcoords_blocks::Sample& sample) {
+    QRgb overviewColor(const chunkcoords_blocks::Sample& sample, const ResourceManager* resources) {
         if (sample.status == chunkcoords_blocks::Status::Empty) return 0;
         if (sample.status != chunkcoords_blocks::Status::Found) return qRgb(96, 96, 96);
+        if (resources) {
+            if (const auto color = resources->addonBlockColor(sample.name)) return color->rgb();
+        }
         const auto base = bl::get_block_color(sample.name);
         const auto tinted = bl::blend_color_with_biome(sample.name, base, bl::biome::plains);
         return qRgb(tinted.r, tinted.g, tinted.b);
@@ -276,6 +281,7 @@ namespace {
 
 bool ChunkCoordsIndex::load(bl::bedrock_level& level, const std::atomic_bool& stop, ProgressCallback progress, ChunkCoordsLoadStats* stats,
                             const ChunkCoordsLoadOptions& options) {
+    const auto resourceSnapshot = options.resources ? options.resources->snapshot() : nullptr;
     if (stats) *stats = ChunkCoordsLoadStats{};
     const auto load_start = std::chrono::steady_clock::now();
     const auto elapsed_ms = [](const std::chrono::steady_clock::time_point& start) {
@@ -306,8 +312,8 @@ bool ChunkCoordsIndex::load(bl::bedrock_level& level, const std::atomic_bool& st
             overview_writes_.clear();
             overview_scanning_ = true;
         }
-        auto sampleCallback = [this](const bl::chunk_pos& pos, const chunkcoords_blocks::Sample& sample) {
-            updateOverview(pos, overviewColor(sample), false);
+        auto sampleCallback = [this, resources = resourceSnapshot.get()](const bl::chunk_pos& pos, const chunkcoords_blocks::Sample& sample) {
+            updateOverview(pos, overviewColor(sample, resources), false);
         };
         sampler = std::make_unique<BlockSamplingPipeline>(stop, options.sampling_queue_bytes, std::move(sampleCallback));
     }
@@ -409,7 +415,7 @@ void ChunkCoordsIndex::updateOverview(const bl::chunk_pos& pos, QRgb color, bool
     if (edited) overview_revision_.fetch_add(1, std::memory_order_release);
 }
 
-void ChunkCoordsIndex::updateOverview(const bl::raw_chunk& raw) {
+void ChunkCoordsIndex::updateOverview(const bl::raw_chunk& raw, const ResourceManager* resources) {
     auto heights = raw.get_normal_key(bl::chunk_key::Data3D);
     int offset = bl::dimension_min_y(raw.pos().dim);
     if (heights.size() < 512) {
@@ -428,7 +434,7 @@ void ChunkCoordsIndex::updateOverview(const bl::raw_chunk& raw) {
     }
     const int y = h - 1 + offset;
     const int section = (y - ((y % 16 + 16) % 16)) / 16;
-    updateOverview(raw.pos(), overviewColor(chunkcoords_blocks::sampleBlock(raw.get_sub_chunk(static_cast<int8_t>(section)), y)));
+    updateOverview(raw.pos(), overviewColor(chunkcoords_blocks::sampleBlock(raw.get_sub_chunk(static_cast<int8_t>(section)), y), resources));
 }
 
 QImage ChunkCoordsIndex::overviewImage(int dimension, const QRect& chunks, const QSize& pixels) const {

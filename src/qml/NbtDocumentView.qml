@@ -46,7 +46,7 @@ Item {
                 height: width
                 anchors.verticalCenter: parent.verticalCenter
                 visible: recordLabel.icon.length > 0
-                source: recordLabel.icon.length === 0 ? "" : recordLabel.icon.startsWith("qrc:/") ? recordLabel.icon :
+                source: recordLabel.icon.length === 0 ? "" : (recordLabel.icon.startsWith("qrc:/") || recordLabel.icon.startsWith("data:") || recordLabel.icon.startsWith("file:")) ? recordLabel.icon :
                                                                                                     "qrc:/bedrockmap/icons/ui/"
                                                                                                     + recordLabel.icon
                                                                                                     + ".svg"

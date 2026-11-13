@@ -1,6 +1,7 @@
 #include "controller/appcontroller.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
@@ -15,6 +16,7 @@
 #include <QtConcurrent>
 #include <exception>
 #include <memory>
+#include <exception>
 #ifdef Q_OS_ANDROID
 #include <QGuiApplication>
 #include <QJniEnvironment>
@@ -22,6 +24,9 @@
 #endif
 
 #include "base/appcontext.h"
+#include "base/addonresources.h"
+#include "base/resourcemanager.h"
+#include "controller/mcstructuresession.h"
 #include "base/apppaths.h"
 #include "base/platform.h"
 #include "controller/nbtsession.h"
@@ -78,6 +83,25 @@ AppController::AppController(std::unique_ptr<LogModel> logs, AppContext& context
     if (applicationController) qFatal("Only one AppController can exist");
     if (!logs_) qFatal("AppController requires an initialized log model");
     applicationController = this;
+    connect(&addon_watcher_, &QFutureWatcher<std::shared_ptr<AddonResources>>::finished, this, [this] {
+        const auto catalog = addon_watcher_.result();
+        importing_addon_ = false;
+        if (!catalog || !catalog->error.isEmpty()) {
+            notifications_.error(catalog ? catalog->error : tr("Could not load addon resources."));
+        } else {
+            context_.resources().setAddonResources(catalog);
+            addon_pack_count_ = catalog->packCount;
+            for (int i = 0; i < sessions_.sessions()->count(); ++i) {
+                auto* session = sessions_.sessions()->at(i);
+                if (auto* world = qobject_cast<WorldSession*>(session)) world->refreshAddonResources();
+                else if (auto* structure = qobject_cast<McstructureSession*>(session)) structure->controller()->refreshResources();
+            }
+            if (addon_import_requested_) notifications_.info(tr("Loaded %1 addon packs.").arg(addon_pack_count_));
+            for (const auto& warning : catalog->warnings) notifications_.warning(tr("Addon resources"), {}, warning);
+        }
+        emit addonResourcesChanged();
+    });
+    importAddonResource({});
     QSettings startupSettings(app_paths::configFile(), QSettings::IniFormat);
     startup_notice_required_ = !startupSettings.value(QStringLiteral("Startup/notice_acknowledged"), false).toBool();
     logs_->setParent(this);
@@ -126,6 +150,7 @@ AppController::AppController(std::unique_ptr<LogModel> logs, AppContext& context
 }
 AppController::~AppController() {
     // File workers own only value captures and must finish before shutdown.
+    addon_watcher_.waitForFinished();
     import_watcher_.waitForFinished();
     delete_watcher_.waitForFinished();
     export_watcher_.waitForFinished();
@@ -134,6 +159,71 @@ AppController::~AppController() {
 AppController* AppController::instance() { return applicationController; }
 
 ResourceManager& AppController::resources() const { return context_.resources(); }
+
+void AppController::importAddonResource(const QUrl& url) {
+    if (importing_addon_) return;
+    importing_addon_ = true;
+    addon_import_requested_ = url.isValid() && !url.isEmpty();
+    emit addonResourcesChanged();
+    addon_watcher_.setFuture(QtConcurrent::run([url] {
+        try {
+            const QString index = app_paths::configDirectory() + QStringLiteral("/addon-packs.ini");
+            QSettings settings(index, QSettings::IniFormat);
+            QStringList stored = settings.value(QStringLiteral("archives")).toStringList();
+            if (url.isValid() && !url.isEmpty()) {
+                auto validated = AddonResources::load({url});
+                if (!validated->error.isEmpty()) return validated;
+                auto input = io::DocumentIo::openRead(url);
+                if (!input.ok()) {
+                    validated->error = input.error;
+                    return validated;
+                }
+                QCryptographicHash hash(QCryptographicHash::Sha256);
+                if (!hash.addData(input.file.get()) || !input.file->seek(0)) {
+                    validated->error = QCoreApplication::translate("AppController", "Could not read addon archive.");
+                    return validated;
+                }
+                const QString path = app_paths::configDirectory() + QStringLiteral("/addon-packs/") +
+                                     QString::fromLatin1(hash.result().toHex()) + QStringLiteral(".mcaddon");
+                if (!QFileInfo::exists(path)) {
+                    const QString error = io::DocumentIo::writeStream(QUrl::fromLocalFile(path), [&](QIODevice& output) {
+                        while (!input.file->atEnd()) {
+                            const auto bytes = input.file->read(64 * 1024);
+                            if (bytes.isEmpty() && input.file->error() != QFileDevice::NoError) return input.file->errorString();
+                            if (output.write(bytes) != bytes.size()) return output.errorString();
+                        }
+                        return QString{};
+                    });
+                    if (!error.isEmpty()) {
+                        validated->error = error;
+                        return validated;
+                    }
+                }
+                stored.removeAll(path);
+                stored.append(path);
+            }
+            QList<QUrl> sources;
+            for (const auto& path : stored) sources.append(QUrl::fromLocalFile(path));
+            auto catalog = AddonResources::load(sources);
+            if (catalog->error.isEmpty()) {
+                settings.setValue(QStringLiteral("archives"), stored);
+                settings.sync();
+                if (settings.status() != QSettings::NoError)
+                    catalog->error = QCoreApplication::translate("AppController", "Could not save addon resource settings.");
+            }
+            return catalog;
+        } catch (const std::exception& exception) {
+            auto failure = std::make_shared<AddonResources>();
+            failure->error =
+                QCoreApplication::translate("AppController", "Could not load addon resources: %1").arg(QString::fromUtf8(exception.what()));
+            return failure;
+        } catch (...) {
+            auto failure = std::make_shared<AddonResources>();
+            failure->error = QCoreApplication::translate("AppController", "Could not load addon resources.");
+            return failure;
+        }
+    }));
+}
 
 void AppController::acknowledgeStartupNotice() {
     if (!startup_notice_required_) return;
@@ -417,6 +507,9 @@ void AppController::openFile(const QUrl& url) {
     const QString suffix = QFileInfo(fileName).suffix();
     if (suffix.compare(QStringLiteral("mcworld"), Qt::CaseInsensitive) == 0)
         openMcworldFile(url);
+    else if (suffix.compare(QStringLiteral("mcaddon"), Qt::CaseInsensitive) == 0 ||
+             suffix.compare(QStringLiteral("mcpack"), Qt::CaseInsensitive) == 0)
+        importAddonResource(url);
     else if (suffix.compare(QStringLiteral("mcstructure"), Qt::CaseInsensitive) == 0)
         openMcstructureFile(url);
     else

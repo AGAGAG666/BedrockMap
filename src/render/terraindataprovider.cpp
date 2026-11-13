@@ -448,20 +448,24 @@ QVector<ActorSprite> TerrainDataProvider::actorSprites(int min_chunk_x, int min_
     for (int z = region_z0; z <= region_z1; z += constant::RW) {
         for (int x = region_x0; x <= region_x1; x += constant::RW) {
             const region_pos pos{x, z, dimension};
+            bool empty = false;
+            loader_->tryGetRegion(pos, empty);
+            const auto region = loader_->regionLease(pos);
+            if (!region || !region->valid) continue;
             if (render_style == 0) {
-                for (const auto& [icon, positions] : loader_->getActorList(pos)) {
+                for (const auto& [icon, positions] : region->actors_) {
                     if (!icon) continue;
                     for (const auto& actor : positions) {
-                        result.append(ActorSprite{icon, actor.x, actor.z, 1.0f});
+                        result.append(ActorSprite{icon, actor.x, actor.z, 1.0f, region->resourceSnapshot});
                         if (result.size() >= max_sprites) return result;
                     }
                 }
             } else {
-                for (const auto& [chunk, icons] : loader_->getActorCountList(pos)) {
+                for (const auto& [chunk, icons] : region->actors_counts_) {
                     Q_UNUSED(chunk);
                     for (const auto& [icon, info] : icons) {
                         if (!icon || info.count <= 0) continue;
-                        result.append(ActorSprite{icon, info.pos.x, info.pos.z, static_cast<float>(std::log2(info.count + 1))});
+                        result.append(ActorSprite{icon, info.pos.x, info.pos.z, static_cast<float>(std::log2(info.count + 1)), region->resourceSnapshot});
                         if (result.size() >= max_sprites) return result;
                     }
                 }

@@ -21,7 +21,7 @@
 
 namespace {
     void readTerrainColumn(ChunkRegion& region, bl::chunk& chunk, const MapFilter& filter, int rw, int rh, int chx, int chz, int y,
-                           int y_solid) {
+                           int y_solid, const ResourceManager* resources) {
         const int x = (rw << 4) + chx;
         const int z = (rh << 4) + chz;
         const auto raw_info = chunk.get_block_with_color(chx, y, chz);
@@ -45,13 +45,14 @@ namespace {
         tips.height = static_cast<int16_t>(y);
         tips.solid_height = solid_height;
         const auto& gpu_base = transparent_water_overlay ? solid_info : raw_info;
-        tips.gpu_base_color = qRgba(gpu_base.color.r, gpu_base.color.g, gpu_base.color.b, gpu_base.color.a);
-        tips.gpu_tint_kind = static_cast<uint8_t>(bl::block_biome_tint_kind(gpu_base.name));
+        const auto addonColor = resources ? resources->addonBlockColor(gpu_base.name) : std::nullopt;
+        tips.gpu_base_color = addonColor ? addonColor->rgba() : qRgba(gpu_base.color.r, gpu_base.color.g, gpu_base.color.b, gpu_base.color.a);
+        tips.gpu_tint_kind = addonColor ? 0 : static_cast<uint8_t>(bl::block_biome_tint_kind(gpu_base.name));
         tips.gpu_water_overlay = transparent_water_overlay;
         tips.gpu_biome_visible = (filter.biomes_list_.count(biome) == 0) == filter.biome_black_mode_;
     }
 
-    void readChunkTerrain(bl::chunk& chunk, const MapFilter& filter, int rw, int rh, ChunkRegion& region) {
+    void readChunkTerrain(bl::chunk& chunk, const MapFilter& filter, int rw, int rh, ChunkRegion& region, const ResourceManager* resources) {
         auto [min_y, max_y] = chunk.get_y_range();
 
         if (filter.enable_layer_) {
@@ -60,7 +61,7 @@ namespace {
                 for (int z = 0; z < 16; ++z) {
                     const auto& block = chunk.get_block_name(x, filter.layer, z);
                     if ((filter.blocks_list_.count(block) == 0) == filter.block_black_mode_)
-                        readTerrainColumn(region, chunk, filter, rw, rh, x, z, filter.layer, -1);
+                        readTerrainColumn(region, chunk, filter, rw, rh, x, z, filter.layer, -1, resources);
                 }
             }
             return;
@@ -70,7 +71,7 @@ namespace {
             for (int x = 0; x < 16; ++x) {
                 for (int z = 0; z < 16; ++z) {
                     auto [top_y, solid_y] = chunk.get_top_y(x, z, 319);
-                    if (top_y >= min_y) readTerrainColumn(region, chunk, filter, rw, rh, x, z, top_y, solid_y);
+                    if (top_y >= min_y) readTerrainColumn(region, chunk, filter, rw, rh, x, z, top_y, solid_y, resources);
                 }
             }
             return;
@@ -101,12 +102,12 @@ namespace {
                     }
                     --y;
                 }
-                if (found) readTerrainColumn(region, chunk, filter, rw, rh, x, z, found_y, solid_y);
+                if (found) readTerrainColumn(region, chunk, filter, rw, rh, x, z, found_y, solid_y, resources);
             }
         }
     }
 
-    void readChunkActors(bl::chunk& chunk, const MapFilter& filter, ChunkRegion& region, ResourceManager* resources) {
+    void readChunkActors(bl::chunk& chunk, const MapFilter& filter, ChunkRegion& region, const ResourceManager* resources) {
         auto entities = chunk.entities();
         const auto mode = setting::current().actorRenderStyle;
         for (auto& entity : entities) {
@@ -182,6 +183,8 @@ void LoadRegionTask::run() {
     const RenderTimingScope region_scope(timings.get(), QStringLiteral("Region bake"));
 
     auto* region = new ChunkRegion();
+    region->resourceSnapshot = resources_ ? resources_->snapshot() : nullptr;
+    const auto* resources = region->resourceSnapshot.get();
     bl::chunk* chunks_[constant::RW * constant::RW]{nullptr};
     {
         const RenderTimingScope scope(timings.get(), QStringLiteral("Chunk load"));
@@ -221,7 +224,7 @@ void LoadRegionTask::run() {
                     auto* chunk = chunks_[rw * constant::RW + rh];
                     if (!chunk) continue;
                     chunk_count++;
-                    readChunkTerrain(*chunk, this->filter_, rw, rh, *region);
+                    readChunkTerrain(*chunk, this->filter_, rw, rh, *region, resources);
                 }
             }
         }
@@ -232,7 +235,7 @@ void LoadRegionTask::run() {
                 for (int rh = 0; rh < constant::RW; rh++) {
                     auto* chunk = chunks_[rw * constant::RW + rh];
                     if (!chunk) continue;
-                    readChunkActors(*chunk, this->filter_, *region, resources_);
+                    readChunkActors(*chunk, this->filter_, *region, resources);
                     auto& hss = chunk->HSAs();
                     region->HSAs_.insert(region->HSAs_.end(), hss.begin(), hss.end());
                 }

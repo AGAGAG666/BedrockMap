@@ -11,6 +11,7 @@
 #include "base/appcontext.h"
 #include "base/binaryclipboard.h"
 #include "nbt.h"
+#include "controller/mcstructurevolumesource.h"
 
 BlockVolumeController::BlockVolumeController(std::unique_ptr<BlockVolumeSource> source, AppContext& context, QObject* parent)
     : VoxelSceneController(parent),
@@ -18,6 +19,14 @@ BlockVolumeController::BlockVolumeController(std::unique_ptr<BlockVolumeSource> 
       document_(new NbtDocumentController(this)),
       context_(context) {
     document_->setReadOnly(true);
+    const auto refresh = [this] { applyResourceRefresh(); };
+    connect(this, &VoxelSceneController::loadingChanged, this, refresh, Qt::QueuedConnection);
+    connect(this, &VoxelSceneController::deletingChanged, this, refresh, Qt::QueuedConnection);
+    connect(this, &VoxelSceneController::exportingChanged, this, refresh, Qt::QueuedConnection);
+    connect(this, &BlockVolumeController::importingChanged, this, refresh, Qt::QueuedConnection);
+    connect(this, &BlockVolumeController::copyingChanged, this, refresh, Qt::QueuedConnection);
+    connect(this, &BlockVolumeController::importPreviewChanged, this, refresh, Qt::QueuedConnection);
+    if (auto* structure = dynamic_cast<McstructureVolumeSource*>(source_.get())) structure->setResources(&context_.resources());
     connect(&load_watcher_, &QFutureWatcherBase::finished, this, &BlockVolumeController::finishLoad);
     connect(&import_load_watcher_, &QFutureWatcherBase::finished, this, &BlockVolumeController::finishImportLoad);
     connect(&import_watcher_, &QFutureWatcher<BlockVolumeMutationResult>::finished, this, &BlockVolumeController::finishImport);
@@ -32,6 +41,17 @@ BlockVolumeController::~BlockVolumeController() {
     if (import_watcher_.isRunning()) import_watcher_.waitForFinished();
     if (copy_watcher_.isRunning()) copy_watcher_.waitForFinished();
     if (delete_watcher_.isRunning()) delete_watcher_.waitForFinished();
+}
+
+void BlockVolumeController::refreshResources() {
+    resource_refresh_pending_ = true;
+    applyResourceRefresh();
+}
+
+void BlockVolumeController::applyResourceRefresh() {
+    if (!resource_refresh_pending_ || loading_ || importing_ || deleting_ || copying_ || exporting() || import_scene_) return;
+    resource_refresh_pending_ = false;
+    if (scene_) startLoad();
 }
 
 void BlockVolumeController::load(const QUrl& url) {

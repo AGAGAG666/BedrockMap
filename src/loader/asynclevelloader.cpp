@@ -21,7 +21,8 @@
 #include "loguru/loguru.hpp"
 
 AsyncLevelLoader::AsyncLevelLoader(ResourceManager* resources)
-    : region_scheduler_(this, resources),
+    : resources_(resources),
+      region_scheduler_(this, resources),
       edit_service_(storage_, cache_manager_, chunk_coords_service_, loaded_, preload_all_chunk_coords_) {
     connect(&chunk_coords_service_, &ChunkCoordsService::preloadProgress, this, &AsyncLevelLoader::chunkCoordsPreloadProgress,
             Qt::QueuedConnection);
@@ -77,7 +78,7 @@ bool AsyncLevelLoader::open(const std::string& path, const std::string& xor_key,
     if (this->loaded_) {
         if (this->preload_all_chunk_coords_) {
             LOG_F(INFO, "Start loading all chunk cooords");
-            chunk_coords_service_.start(storage_.level(), {}, chunk_overview_enabled_);
+            chunk_coords_service_.start(storage_.level(), {}, chunk_overview_enabled_, resources_);
         }
     }
     return this->loaded_;
@@ -143,6 +144,16 @@ void AsyncLevelLoader::reloadFilteredRegions() {
     if (!loaded_.load(std::memory_order_acquire)) return;
     cache_manager_.clear();
     region_scheduler_.reset();
+}
+
+void AsyncLevelLoader::refreshResources() {
+    if (!loaded_.load(std::memory_order_acquire)) return;
+    reloadFilteredRegions();
+    if (preload_all_chunk_coords_) {
+        const auto pending = storage_.pendingChunkPositions();
+        chunk_coords_service_.start(storage_.level(), [this, pending] { storage_.replayChunkIndex(chunk_coords_service_, pending); },
+                                    chunk_overview_enabled_, resources_);
+    }
 }
 
 void AsyncLevelLoader::setRenderActive(bool active) {

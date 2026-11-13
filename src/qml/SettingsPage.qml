@@ -86,6 +86,14 @@ Item {
         }
     }
 
+    FileUrlDialog {
+        id: addonFileDialog
+        title: qsTr("Import addon resources")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Addon packs (*.mcaddon *.mcpack *.zip)")]
+        onAccepted: App.importAddonResource(selectedUrl)
+    }
+
     Rectangle {
         anchors.fill: parent
         color: Theme.background
@@ -394,6 +402,20 @@ Item {
                     visible: page.category === 4
                     Layout.fillWidth: true
                     spacing: Theme.gapMedium
+                    SettingGroup {
+                        title: qsTr("Addon resources")
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("%1 imported packs").arg(App.addonPackCount)
+                            color: Theme.text
+                            wrapMode: Text.Wrap
+                        }
+                        AppButton {
+                            text: App.importingAddon ? qsTr("Loading addon resources…") : qsTr("Import addon resources")
+                            enabled: !App.importingAddon
+                            onClicked: addonFileDialog.open()
+                        }
+                    }
                     SettingGroup {
                         title: qsTr("World sources")
                         RowLayout {

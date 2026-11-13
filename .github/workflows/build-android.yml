@@ -26,7 +26,7 @@ jobs:
           aqtsource: git+https://github.com/miurahr/aqtinstall.git@076e1659807d0b362a3ed684d54c2e9c775eb9c7
           version: '6.11.1'
           arch: win64_mingw
-          modules: qtshadertools
+          modules: qtshadertools qtimageformats
           tools: tools_mingw1310,qt.tools.win64_mingw1310
       - uses: jurplel/install-qt-action@v4
         with:
@@ -34,12 +34,14 @@ jobs:
           version: '6.11.1'
           target: android
           arch: android_arm64_v8a
-          modules: qtshadertools
+          modules: qtshadertools qtimageformats
       - name: Build signed APK
         shell: pwsh
         run: |
           Get-Command g++ | Out-Null
           $qtRoot = Split-Path $env:QT_ROOT_DIR -Parent
+          & (Join-Path $qtRoot 'mingw_64\bin\lupdate.exe') -no-obsolete -no-ui-lines -recursive ./src -ts translations/zh_CN.ts translations/en.ts
+          if ($LASTEXITCODE -ne 0) { throw 'Translation update failed.' }
           $ndkRoot = Join-Path $env:ANDROID_SDK_ROOT 'ndk\30.0.16248370'
           $keystore = Join-Path $env:RUNNER_TEMP 'bedrockmap-ci.p12'
           $credentials = Join-Path $env:RUNNER_TEMP 'bedrockmap-ci.properties'

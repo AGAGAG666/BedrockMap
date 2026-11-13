@@ -59,6 +59,36 @@
 <context>
     <name>AppController</name>
     <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not load addon resources: %1</source>
+        <translation>无法加载 Addon 资源：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not load addon resources.</source>
+        <translation>无法加载 Addon 资源。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Loaded %1 addon packs.</source>
+        <translation>已加载 %1 个 Addon 包。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Addon resources</source>
+        <translation>Addon 资源</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not read addon archive.</source>
+        <translation>无法读取 Addon 归档。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not save addon resource settings.</source>
+        <translation>无法保存 Addon 资源设置。</translation>
+    </message>
+    <message>
         <location filename="../src/loader/leveloperator.cpp"/>
         <location filename="../src/loader/leveloperator.cpp"/>
         <source>Directory nesting is too deep.</source>
@@ -2284,6 +2314,31 @@
     <name>SettingsPage</name>
     <message>
         <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Import addon resources</source>
+        <translation>导入 Addon 资源</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Addon packs (*.mcaddon *.mcpack *.zip)</source>
+        <translation>Addon 包 (*.mcaddon *.mcpack *.zip)</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Addon resources</source>
+        <translation>Addon 资源</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>%1 imported packs</source>
+        <translation>已导入 %1 个包</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Loading addon resources…</source>
+        <translation>正在加载 Addon 资源……</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
         <source>Interface</source>
         <translation>界面</translation>
     </message>
@@ -4024,6 +4079,59 @@ Current version: %2</source>
         <location filename="../src/base/config.cpp"/>
         <source>Could not save settings to %1.</source>
         <translation>无法将设置保存到 %1。</translation>
+    </message>
+</context>
+<context>
+    <name>AddonResources</name>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid JSON in %1: %2</source>
+        <translation>%1 中的 JSON 格式错误：%2</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid pack archive: %1</source>
+        <translation>无效的包归档：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Unreadable pack archive: %1</source>
+        <translation>无法读取包归档：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid pack manifest: %1</source>
+        <translation>无效的包清单：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Pack directory is unavailable: %1</source>
+        <translation>包目录不可用：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Cannot read pack: %1</source>
+        <translation>无法读取包：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Cannot read %1</source>
+        <translation>无法读取 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid %1</source>
+        <translation>无效的 %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Enabled pack not found: %1</source>
+        <translation>找不到已启用的包：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>No resource or behavior pack was found in %1.</source>
+        <translation>在 %1 中没有找到资源包或行为包。</translation>
     </message>
 </context>
 </TS>

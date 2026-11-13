@@ -6,6 +6,8 @@
 
 #include "controller/blockvolumesource.h"
 
+class ResourceManager;
+
 namespace bl {
     class mcstructure;
 }
@@ -13,6 +15,7 @@ namespace bl {
 /// Loads block volumes from mcstructure files. Editing is intentionally unsupported.
 class McstructureVolumeSource final : public BlockVolumeSource {
    public:
+    void setResources(const ResourceManager* resources) { resources_ = resources; }
     bool configureStructure(const QUrl& url) override;
     bool configureBytes(const QByteArray& raw) override;
     std::shared_ptr<BlockVolumeLoadResult> load(const std::function<void(int)>& reportProgress) override;
@@ -21,6 +24,7 @@ class McstructureVolumeSource final : public BlockVolumeSource {
     [[nodiscard]] const bl::mcstructure* volume() const { return volume_.get(); }
 
    private:
+    const ResourceManager* resources_{nullptr};
     QUrl url_;
     QByteArray raw_;
     std::shared_ptr<const bl::mcstructure> volume_;

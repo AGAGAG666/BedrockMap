@@ -59,6 +59,36 @@
 <context>
     <name>AppController</name>
     <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not load addon resources: %1</source>
+        <translation>Could not load addon resources: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not load addon resources.</source>
+        <translation>Could not load addon resources.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Loaded %1 addon packs.</source>
+        <translation>Loaded %1 addon packs.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Addon resources</source>
+        <translation>Addon resources</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not read addon archive.</source>
+        <translation>Could not read addon archive.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/appcontroller.cpp"/>
+        <source>Could not save addon resource settings.</source>
+        <translation>Could not save addon resource settings.</translation>
+    </message>
+    <message>
         <location filename="../src/loader/leveloperator.cpp"/>
         <location filename="../src/loader/leveloperator.cpp"/>
         <source>Directory nesting is too deep.</source>
@@ -2284,6 +2314,31 @@
     <name>SettingsPage</name>
     <message>
         <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Import addon resources</source>
+        <translation>Import addon resources</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Addon packs (*.mcaddon *.mcpack *.zip)</source>
+        <translation>Addon packs (*.mcaddon *.mcpack *.zip)</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Addon resources</source>
+        <translation>Addon resources</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>%1 imported packs</source>
+        <translation>%1 imported packs</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
+        <source>Loading addon resources…</source>
+        <translation>Loading addon resources…</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/SettingsPage.qml"/>
         <source>Interface</source>
         <translation type="unfinished"></translation>
     </message>
@@ -4024,6 +4079,59 @@ Current version: %2</translation>
         <location filename="../src/base/config.cpp"/>
         <source>Could not save settings to %1.</source>
         <translation>Could not save settings to %1.</translation>
+    </message>
+</context>
+<context>
+    <name>AddonResources</name>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid JSON in %1: %2</source>
+        <translation>Invalid JSON in %1: %2</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid pack archive: %1</source>
+        <translation>Invalid pack archive: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Unreadable pack archive: %1</source>
+        <translation>Unreadable pack archive: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid pack manifest: %1</source>
+        <translation>Invalid pack manifest: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Pack directory is unavailable: %1</source>
+        <translation>Pack directory is unavailable: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Cannot read pack: %1</source>
+        <translation>Cannot read pack: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Cannot read %1</source>
+        <translation>Cannot read %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Invalid %1</source>
+        <translation>Invalid %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>Enabled pack not found: %1</source>
+        <translation>Enabled pack not found: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/base/addonresources.cpp"/>
+        <source>No resource or behavior pack was found in %1.</source>
+        <translation>No resource or behavior pack was found in %1.</translation>
     </message>
 </context>
 </TS>

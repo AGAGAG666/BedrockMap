@@ -118,6 +118,7 @@ class ChunkEditorController : public VoxelSceneController {
     [[nodiscard]] NbtDocumentController* blockEntitiesDocument() { return &block_entities_document_; }
     [[nodiscard]] NbtDocumentController* pendingTicksDocument() { return &pending_ticks_document_; }
 
+    void refreshResources();
     Q_INVOKABLE void openChunk(int chunkX, int chunkZ, int dimension);
     Q_INVOKABLE void clear();
     Q_INVOKABLE void setTerrainY(int y);
@@ -154,6 +155,7 @@ class ChunkEditorController : public VoxelSceneController {
     int chunk_x_{0};
     int chunk_z_{0};
     int dimension_{0};
+    bool resource_refresh_pending_{false};
     QString y_range_;
     QString error_message_;
     std::shared_ptr<const ChunkTerrainSnapshot> terrain_;

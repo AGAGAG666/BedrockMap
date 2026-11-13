@@ -2,8 +2,10 @@
 #define BEDROCKMAP_OVERLAY_H
 
 #include <QColor>
+#include <memory>
 
 class QImage;
+class ResourceManager;
 
 /// One entity/marker icon at a world position. Coordinates are in blocks, as
 /// stored by ChunkRegion; the overlay converts them with the camera transform.
@@ -12,6 +14,7 @@ struct ActorSprite {
     float block_x{0.0f};
     float block_z{0.0f};
     float scale{1.0f};
+    std::shared_ptr<const ResourceManager> resources;
 };
 
 /// World-space rectangle used by the QML renderer's village and HSA overlays.

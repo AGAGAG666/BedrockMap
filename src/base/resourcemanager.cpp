@@ -8,6 +8,7 @@
 #include <QStringList>
 
 #include "base/config.h"
+#include "base/addonresources.h"
 #include "loguru/loguru.hpp"
 
 namespace {
@@ -42,7 +43,7 @@ namespace {
 }  // namespace
 
 void ResourceManager::initialize() {
-    if (fallback_image_) return;
+    if (fallback_ || fallback_image_) return;
 
     QDirIterator it(QStringLiteral(":/bedrockmap/icons/entity"), QDirIterator::Subdirectories);
     while (it.hasNext()) {
@@ -54,12 +55,89 @@ void ResourceManager::initialize() {
 }
 
 const QImage* ResourceManager::actorImage(const QString& key) const {
-    const auto it = actor_images_.find(key);
-    return it == actor_images_.end() ? fallback_image_.get() : it->second.get();
+    const QString identifier = key.contains(QLatin1Char(':')) ? key : QStringLiteral("minecraft:") + key;
+    {
+        const std::lock_guard lock(addon_mutex_);
+        if (addons_) {
+            const auto it = addons_->entities.constFind(identifier);
+            if (it != addons_->entities.cend() && !it->icon.isNull()) return &it->icon;
+        }
+    }
+    if (fallback_) return fallback_->actorImage(identifier);
+    const QString bundled = identifier.startsWith(QStringLiteral("minecraft:")) ? identifier.mid(10) : identifier;
+    const auto* bundledResources = bundled_images_ ? bundled_images_ : this;
+    const auto it = bundledResources->actor_images_.find(bundled);
+    return it == bundledResources->actor_images_.end() ? bundledResources->fallback_image_.get() : it->second.get();
+}
+
+QString ResourceManager::actorLabel(const QString& identifier, const QString& customName) const {
+    QString name = customName;
+    {
+        const std::lock_guard lock(addon_mutex_);
+        if (name.isEmpty() && addons_) name = addons_->entities.value(identifier).name;
+    }
+    if (name.isEmpty() && fallback_) return fallback_->actorLabel(identifier);
+    return name.isEmpty() || name == identifier ? identifier : name + QStringLiteral(" (") + identifier + QLatin1Char(')');
+}
+
+QString ResourceManager::actorIconUrl(const QString& identifier) const {
+    {
+        const std::lock_guard lock(addon_mutex_);
+        if (addons_) {
+            const auto it = addons_->entities.constFind(identifier);
+            if (it != addons_->entities.cend() && !it->iconUrl.isEmpty()) return it->iconUrl;
+        }
+    }
+    if (fallback_) return fallback_->actorIconUrl(identifier);
+    const QString key = identifier.startsWith(QStringLiteral("minecraft:")) ? identifier.mid(10) : identifier;
+    const auto* bundledResources = bundled_images_ ? bundled_images_ : this;
+    return bundledResources->actor_images_.contains(key) ? QStringLiteral("qrc:/bedrockmap/icons/entity/%1.png").arg(key)
+                                       : QStringLiteral("qrc:/bedrockmap/icons/what.png");
+}
+
+std::optional<QColor> ResourceManager::addonBlockColor(std::string_view identifier) const {
+    const QString key = QString::fromUtf8(identifier.data(), static_cast<qsizetype>(identifier.size()));
+    {
+        const std::lock_guard lock(addon_mutex_);
+        if (addons_) {
+            const auto it = addons_->blockColors.constFind(key);
+            if (it != addons_->blockColors.cend()) return it.value();
+        }
+    }
+    return fallback_ ? fallback_->addonBlockColor(identifier) : std::nullopt;
+}
+
+void ResourceManager::setAddonResources(std::shared_ptr<const AddonResources> resources) {
+    const std::lock_guard lock(addon_mutex_);
+    addons_ = std::move(resources);
+}
+
+std::shared_ptr<const ResourceManager> ResourceManager::snapshot() const {
+    auto frozen = std::make_shared<ResourceManager>();
+    {
+        const std::lock_guard lock(addon_mutex_);
+        frozen->addons_ = addons_;
+    }
+    if (fallback_) {
+        frozen->fallback_owner_ = fallback_->snapshot();
+        frozen->fallback_ = frozen->fallback_owner_.get();
+    } else {
+        frozen->bundled_images_ = bundled_images_ ? bundled_images_ : this;
+    }
+    return frozen;
 }
 
 std::vector<const QImage*> ResourceManager::markerIcons() const {
-    std::vector<const QImage*> result;
+    std::vector<const QImage*> result = fallback_ ? fallback_->markerIcons() : std::vector<const QImage*>{};
+    {
+        const std::lock_guard lock(addon_mutex_);
+        const auto append = [&result](const std::shared_ptr<const AddonResources>& catalog) {
+            if (!catalog) return;
+            for (auto it = catalog->entities.cbegin(); it != catalog->entities.cend(); ++it)
+                if (!it->icon.isNull()) result.push_back(&it->icon);
+        };
+        append(addons_);
+    }
     result.reserve(static_cast<std::size_t>(actor_images_.size()) + 1);
     for (const auto& [key, image] : actor_images_) {
         Q_UNUSED(key);

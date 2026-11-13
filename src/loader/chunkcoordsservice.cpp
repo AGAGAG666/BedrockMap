@@ -6,20 +6,22 @@ ChunkCoordsService::ChunkCoordsService() { preload_pool_.setMaxThreadCount(1); }
 
 ChunkCoordsService::~ChunkCoordsService() { close(); }
 
-void ChunkCoordsService::start(bl::bedrock_level& level, std::function<void()> ready, bool overview) {
+void ChunkCoordsService::start(bl::bedrock_level& level, std::function<void()> ready, bool overview, const ResourceManager* resources) {
     close();
+    resources_ = resources;
     stop_.store(false, std::memory_order_release);
     overview_enabled_.store(overview, std::memory_order_release);
-    preload_pool_.start(QRunnable::create([this, level_ptr = &level, ready = std::move(ready), overview]() mutable {
+    preload_pool_.start(QRunnable::create([this, level_ptr = &level, ready = std::move(ready), overview, resources]() mutable {
         const auto progress = [this](std::uint64_t scannedKeys, std::uint64_t chunks) {
             emit preloadProgress(static_cast<qulonglong>(scannedKeys), static_cast<qulonglong>(chunks));
         };
         ChunkCoordsLoadOptions options;
         options.build_overview = overview;
+        options.resources = resources;
         if (index_.load(*level_ptr, stop_, progress, nullptr, options) && !stop_.load(std::memory_order_acquire)) {
+            if (ready) ready();
             ready_.store(true, std::memory_order_release);
             emit preloadFinished();
-            if (ready) ready();
         }
     }));
 }

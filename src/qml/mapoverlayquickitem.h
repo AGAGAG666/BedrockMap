@@ -12,6 +12,7 @@
 #include <QTimer>
 #include <QVector>
 #include <memory>
+#include <vector>
 
 #include "controller/globaldatacontroller.h"
 #include "controller/mapcontroller.h"
@@ -19,6 +20,8 @@
 #include "render/overlay.h"
 #include "render/terraindataprovider.h"
 
+class IconAtlas;
+class ResourceManager;
 class QSGGeometryNode;
 class QSGNode;
 struct MapRenderState;
@@ -150,6 +153,9 @@ class MapOverlayQuickItem : public QQuickItem {
     QColor selection_color_{218, 255, 251, 80};
     mutable QMutex entities_mutex_;
     std::shared_ptr<const QVector<ActorSprite>> entity_sprites_;
+    std::shared_ptr<const IconAtlas> entity_atlas_;
+    std::vector<const QImage*> atlas_icons_;
+    std::shared_ptr<const IconAtlas> rendered_atlas_;
     QSGGeometryNode* sprite_node_{nullptr};
     int sprite_vertex_capacity_{0};
     mutable QMutex slime_chunks_mutex_;

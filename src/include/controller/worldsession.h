@@ -16,6 +16,7 @@
 #include "model/mapviewstate.h"
 #include "render/terraindataprovider.h"
 
+class ResourceManager;
 class AsyncLevelLoader;
 class AppContext;
 namespace bl::nbt {
@@ -76,6 +77,7 @@ class WorldSession final : public WorkspaceSession {
     void close() override;
     [[nodiscard]] bool commit() override;
     void ensureTerrainData();
+    void refreshAddonResources();
     void setActive(bool active) override;
     void setWorkspaceSection(int section);
     void setWorkspaceRoute(const QString& route);
@@ -107,6 +109,7 @@ class WorldSession final : public WorkspaceSession {
     void onOpenFinished();
 
     AppContext& context_;
+    std::unique_ptr<ResourceManager> world_resources_;
     MapViewState map_view_state_;
     MapController map_controller_;
     ChunkEditorController chunk_editor_;

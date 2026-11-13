@@ -16,6 +16,7 @@
 #include "model/notifications.h"
 #include "model/worldlistmodel.h"
 
+class AddonResources;
 class ResourceManager;
 class AppContext;
 
@@ -34,6 +35,8 @@ class AppController final : public QObject {
     Q_PROPERTY(WorkspaceSessionModel* openSessions READ openSessions CONSTANT)
     Q_PROPERTY(QObject* activeSession READ activeSession NOTIFY activeSessionChanged)
     Q_PROPERTY(bool importingWorld READ importingWorld NOTIFY importingWorldChanged)
+    Q_PROPERTY(bool importingAddon READ importingAddon NOTIFY addonResourcesChanged)
+    Q_PROPERTY(int addonPackCount READ addonPackCount NOTIFY addonResourcesChanged)
     Q_PROPERTY(QString worldTaskTitle READ worldTaskTitle NOTIFY worldTaskChanged)
     Q_PROPERTY(QString worldTaskDetail READ worldTaskDetail NOTIFY worldTaskChanged)
     Q_PROPERTY(bool deletingWorld READ deletingWorld NOTIFY deletingWorldChanged)
@@ -62,6 +65,9 @@ class AppController final : public QObject {
     [[nodiscard]] WorkspaceSessionModel* openSessions() { return sessions_.sessions(); }
     [[nodiscard]] QObject* activeSession() const { return sessions_.activeSession(); }
     [[nodiscard]] bool importingWorld() const { return importing_world_; }
+    [[nodiscard]] bool importingAddon() const { return importing_addon_; }
+    [[nodiscard]] int addonPackCount() const { return addon_pack_count_; }
+    Q_INVOKABLE void importAddonResource(const QUrl& url);
     [[nodiscard]] QString worldTaskTitle() const { return world_task_title_; }
     [[nodiscard]] QString worldTaskDetail() const { return world_task_detail_; }
     [[nodiscard]] bool deletingWorld() const { return deleting_world_; }
@@ -115,6 +121,7 @@ class AppController final : public QObject {
     void workspaceIndexChanged();
     void activeSessionChanged();
     void importingWorldChanged();
+    void addonResourcesChanged();
     void worldTaskChanged();
     void deletingWorldChanged();
     void exportingWorldChanged();
@@ -150,6 +157,10 @@ class AppController final : public QObject {
     bool workspace_open_{false};
     QString last_shizuku_permission_;
     SessionController sessions_;
+    QFutureWatcher<std::shared_ptr<AddonResources>> addon_watcher_;
+    bool importing_addon_{false};
+    bool addon_import_requested_{false};
+    int addon_pack_count_{0};
     QFutureWatcher<QString> import_watcher_;
     bool importing_world_{false};
     QString world_task_title_;

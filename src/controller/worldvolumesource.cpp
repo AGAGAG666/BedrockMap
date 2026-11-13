@@ -36,7 +36,7 @@ namespace {
 
         int firstWorldY = 0;
         auto grid =
-            voxel_mesh::createVoxelDataFromChunks(chunks, [&](int count) { reportProgress(35 + count * 30 / totalChunks); }, &firstWorldY);
+            voxel_mesh::createVoxelDataFromChunks(chunks, [&](int count) { reportProgress(35 + count * 30 / totalChunks); }, &firstWorldY, loader->resources());
         ownedChunks.clear();
         chunks.clear();
         const auto bounds = voxel_mesh::fullBounds(grid);
@@ -72,7 +72,10 @@ bool WorldVolumeSource::configureImport(const QUrl& url) { return import_source_
 
 bool WorldVolumeSource::configureImportData(const QByteArray& raw) { return import_source_.configureBytes(raw); }
 
-void WorldVolumeSource::setLevelLoader(AsyncLevelLoader* loader) { loader_ = loader; }
+void WorldVolumeSource::setLevelLoader(AsyncLevelLoader* loader) {
+    loader_ = loader;
+    import_source_.setResources(loader ? loader->resources() : nullptr);
+}
 
 std::shared_ptr<BlockVolumeLoadResult> WorldVolumeSource::load(const std::function<void(int)>& reportProgress) {
     auto result = std::make_shared<BlockVolumeLoadResult>();

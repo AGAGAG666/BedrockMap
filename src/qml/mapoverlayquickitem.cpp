@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <functional>
 
 #include "base/config.h"
 #include "base/resourcemanager.h"
@@ -21,21 +22,13 @@
 #include "controller/globaldatacontroller.h"
 #include "controller/mapcontroller.h"
 #include "iconatlas.h"
+#include "loader/asynclevelloader.h"
 #include "maprenderstate.h"
 #include "render/terraindataprovider.h"
 #include "terrainquickitem.h"
 
 namespace {
     constexpr qreal minimum_entity_scale = 4.0;
-
-    const IconAtlas& markerIconAtlas(const ResourceManager& resources) {
-        static const IconAtlas atlas = [&resources] {
-            IconAtlas result;
-            result.build(resources.markerIcons());
-            return result;
-        }();
-        return atlas;
-    }
 
     class SpriteAtlasMaterial final : public QSGTextureMaterial {
        public:
@@ -56,7 +49,6 @@ namespace {
 
 MapOverlayQuickItem::MapOverlayQuickItem(QQuickItem* parent) : QQuickItem(parent) {
     setFlag(ItemHasContents, true);
-    if (auto* app = AppController::instance()) markerIconAtlas(app->resources());
     entity_refresh_timer_.setSingleShot(true);
     entity_refresh_timer_.setInterval(33);
     connect(&entity_refresh_timer_, &QTimer::timeout, this, &MapOverlayQuickItem::refreshEntities);
@@ -132,6 +124,7 @@ void MapOverlayQuickItem::setProvider(TerrainDataProvider* provider) {
     if (provider_ == provider) return;
     if (provider_) disconnect(provider_, nullptr, this, nullptr);
     provider_ = provider;
+    atlas_icons_.clear();
     if (provider_) {
         connect(provider_, &TerrainDataProvider::tileReady, this, &MapOverlayQuickItem::scheduleEntityRefresh);
         connect(provider_, &TerrainDataProvider::tileReady, this, &MapOverlayQuickItem::scheduleRectRefresh);
@@ -433,6 +426,17 @@ void MapOverlayQuickItem::refreshEntities() {
 
     auto next =
         std::make_shared<QVector<ActorSprite>>(provider_->actorSprites(min_x, min_z, max_x, max_z, camera.dimension, actor_render_style_));
+    std::vector<const QImage*> icons;
+    for (const auto& sprite : *next) if (sprite.icon) icons.push_back(sprite.icon);
+    std::sort(icons.begin(), icons.end(), std::less<const QImage*>{});
+    icons.erase(std::unique(icons.begin(), icons.end()), icons.end());
+    if (icons != atlas_icons_) {
+        auto atlas = std::make_shared<IconAtlas>();
+        atlas->build(icons);
+        const QMutexLocker lock(&entities_mutex_);
+        entity_atlas_ = std::move(atlas);
+        atlas_icons_ = std::move(icons);
+    }
     {
         const QMutexLocker lock(&entities_mutex_);
         entity_sprites_ = std::move(next);
@@ -771,19 +775,26 @@ QSGNode* MapOverlayQuickItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeD
     updateOpenedChunkNode(root, render_dimension);
 
     std::shared_ptr<const QVector<ActorSprite>> sprites;
+    std::shared_ptr<const IconAtlas> atlas_snapshot;
     {
         const QMutexLocker lock(&entities_mutex_);
         sprites = entity_sprites_;
+        atlas_snapshot = entity_atlas_;
     }
     if (!sprites || sprites->isEmpty() || !entities_visible_) {
         if (sprite_node_ && sprite_node_->parent()) root->removeChildNode(sprite_node_);
         return root;
     }
 
-    auto* app = AppController::instance();
-    if (!app) return root;
-    const IconAtlas& atlas = markerIconAtlas(app->resources());
-    if (atlas.isEmpty()) return root;
+    if (!atlas_snapshot || atlas_snapshot->isEmpty()) return root;
+    const IconAtlas& atlas = *atlas_snapshot;
+    if (sprite_node_ && rendered_atlas_ != atlas_snapshot) {
+        if (sprite_node_->parent()) sprite_node_->parent()->removeChildNode(sprite_node_);
+        delete sprite_node_;
+        sprite_node_ = nullptr;
+        sprite_vertex_capacity_ = 0;
+    }
+    rendered_atlas_ = atlas_snapshot;
     if (!sprite_node_) {
         auto* geometry = new QSGGeometry(QSGGeometry::defaultAttributes_TexturedPoint2D(), 0);
         geometry->setDrawingMode(QSGGeometry::DrawTriangles);

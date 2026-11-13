@@ -139,7 +139,7 @@ namespace {
     }
 
     std::shared_ptr<VoxelSceneData> buildScene(const bl::mcstructure& structure) {
-        auto grid = voxel_mesh::createVoxelDataFromMcstructure(structure);
+        auto grid = voxel_mesh::createVoxelDataFromMcstructure(structure, resources_);
         auto scene = std::make_shared<VoxelSceneData>();
         if (const auto bounds = voxel_mesh::fullBounds(grid)) {
             auto mesh = voxel_mesh::build(grid, *bounds);
