@@ -83,8 +83,7 @@ struct GlobalDataControllerQml {
 struct WorldEntityControllerQml {
     Q_GADGET
     QML_FOREIGN(WorldEntityController)
-    QML_NAMED_ELEMENT(WorldEntityController)
-    QML_UNCREATABLE("Provided by WorldSession")
+    QML_ANONYMOUS
 };
 
 struct GlobalNbtSectionQml {
