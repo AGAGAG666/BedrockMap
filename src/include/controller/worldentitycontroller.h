@@ -26,7 +26,7 @@ class WorldEntityController final : public QAbstractListModel {
     Q_PROPERTY(qulonglong skippedRecords READ skippedRecords NOTIFY stateChanged)
 
    public:
-    explicit WorldEntityController(QObject* parent = nullptr);
+    explicit WorldEntityController(QObject* parent);
     ~WorldEntityController() override;
     int rowCount(const QModelIndex& parent = {}) const override;
     QVariant data(const QModelIndex& index, int role) const override;
