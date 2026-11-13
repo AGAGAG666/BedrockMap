@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <cmath>
+#include <chrono>
 #include <limits>
 #include <stdexcept>
 #include "actor.h"
@@ -39,6 +40,7 @@ void ChunkStorage::putMissing(const bl::chunk_pos& pos) {
 void ChunkStorage::putRawChunk(const bl::raw_chunk& raw) {
     std::lock_guard<std::mutex> lock(mutex_);
     cache_.putChunk(raw.pos(), raw);
+    if (!raw.get_normal_key(bl::chunk_key::Entity).empty()) added_legacy_entity_chunks_.insert(raw.pos());
 }
 
 bool ChunkStorage::clearChunkEntities(const bl::chunk_pos& pos) {
@@ -78,20 +80,35 @@ void ChunkStorage::replayChunkIndex(ChunkCoordsService& coords, const std::vecto
     }
 }
 
-WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& stop, const std::function<void(uint64_t)>& progress) {
+WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& stop,
+    const std::function<void(const WorldEntityScanProgress&)>& progress,
+    const std::optional<std::vector<bl::chunk_pos>>& legacyChunks) {
     struct PendingEntities {
         std::string legacy;
         std::map<std::string, std::string> actors;
     };
     WorldEntityScanResult result;
+    WorldEntityScanProgress state;
+    auto lastReport = std::chrono::steady_clock::now();
+    const auto report = [&](bool force = false) {
+        const auto now = std::chrono::steady_clock::now();
+        if (!force && now - lastReport < std::chrono::milliseconds(100)) return;
+        state.entities = result.entities.size();
+        progress(state);
+        lastReport = now;
+    };
+    report(true);
     auto* db = level_.db();
     if (!db) throw std::runtime_error("The world database is closed.");
     const auto release = [db](const leveldb::Snapshot* snapshot) { if (snapshot) db->ReleaseSnapshot(snapshot); };
     std::unique_ptr<const leveldb::Snapshot, decltype(release)> snapshot(nullptr, release);
     std::map<bl::chunk_pos, PendingEntities> pending;
+    std::set<bl::chunk_pos> legacyPositions;
+    if (legacyChunks) legacyPositions.insert(legacyChunks->begin(), legacyChunks->end());
     {
         const std::lock_guard lock(mutex_);
         snapshot.reset(db->GetSnapshot());
+        legacyPositions.insert(added_legacy_entity_chunks_.begin(), added_legacy_entity_chunks_.end());
         for (const auto& [pos, cached] : cache_.cache_) {
             auto& entry = pending[pos];
             if (cached.shouldDelete || !cached.chunk) continue;
@@ -101,13 +118,14 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
     }
     auto options = level_.bulk_read_options();
     options.snapshot = snapshot.get();
-    std::set<int64_t> seen;
+    std::unordered_set<int64_t> seen;
     const auto append = [&](std::string_view raw, int dimension) {
-        if (raw.empty()) return;
+        if (raw.empty() || stop.load()) return;
         auto parsed = bl::nbt::parse_all(std::span<const byte_t>(raw.data(), raw.size()));
         if (!parsed) { ++result.skippedRecords; return; }
         for (auto* tag : parsed.roots) {
             std::unique_ptr<bl::nbt::compound_tag> root(tag);
+            if (stop.load()) continue;
             bl::actor actor;
             if (!actor.load_from_nbt_owned(root.get())) { ++result.skippedRecords; continue; }
             root.release();
@@ -126,27 +144,29 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
                 if (const auto* value = custom->as<const bl::nbt::string_tag*>()) name = value->value;
             }
             result.entities.push_back({dimension, pos.x, pos.y, pos.z, std::string(actor.identifier()), std::move(name)});
+            report();
         }
     };
     // Pending chunks take precedence over every stored copy of the same actor.
     for (const auto& [pos, entry] : pending) {
         if (stop.load()) return result;
         append(entry.legacy, pos.dim);
-        for (const auto& [uid, raw] : entry.actors) append(raw, pos.dim);
-    }
-    uint64_t scanned = 0;
-    std::unique_ptr<leveldb::Iterator> iterator(db->NewIterator(options));
-    for (iterator->SeekToFirst(); iterator->Valid() && !stop.load(); iterator->Next()) {
-        if ((++scanned % 4096) == 0) progress(scanned);
-        const auto key = iterator->key();
-        const std::string_view keyView(key.data(), key.size());
-        const auto chunkKey = bl::chunk_key::parse(keyView);
-        if (chunkKey.valid() && chunkKey.type == bl::chunk_key::Entity) {
-            if (!pending.contains(chunkKey.cp)) append(std::string_view(iterator->value().data(), iterator->value().size()), chunkKey.cp.dim);
-            continue;
+        for (const auto& [uid, raw] : entry.actors) {
+            if (stop.load()) return result;
+            append(raw, pos.dim);
         }
-        if (!keyView.starts_with(bl::storage_key::actor_digest)) continue;
-        const auto digestKey = bl::actor_digest_key::parse(keyView);
+    }
+    state.stage = WorldEntityScanStage::ModernEntities;
+    state.processed = 0;
+    report(true);
+    const leveldb::Slice prefix(bl::storage_key::actor_digest.data(), bl::storage_key::actor_digest.size());
+    std::unique_ptr<leveldb::Iterator> iterator(db->NewIterator(options));
+    for (iterator->Seek(prefix); iterator->Valid() && iterator->key().starts_with(prefix) && !stop.load(); iterator->Next()) {
+        ++state.keys;
+        ++state.processed;
+        report();
+        const auto key = iterator->key();
+        const auto digestKey = bl::actor_digest_key::parse(std::string_view(key.data(), key.size()));
         if (!digestKey.valid()) { ++result.skippedRecords; continue; }
         if (pending.contains(digestKey.cp)) continue;
         bl::actor_digest_list digest;
@@ -158,6 +178,8 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
             if (stop.load()) return result;
             std::string raw;
             const auto status = db->Get(options, std::string(bl::storage_key::actor) + uid, &raw);
+            ++state.actorReads;
+            report();
             if (status.IsNotFound()) { ++result.skippedRecords; continue; }
             if (!status.ok()) throw std::runtime_error(status.ToString());
             if (raw.empty()) { ++result.skippedRecords; continue; }
@@ -165,7 +187,52 @@ WorldEntityScanResult ChunkStorage::scanWorldEntities(const std::atomic_bool& st
         }
     }
     if (!iterator->status().ok()) throw std::runtime_error(iterator->status().ToString());
-    progress(scanned);
+    if (stop.load()) return result;
+    state.stage = WorldEntityScanStage::LegacyEntities;
+    state.processed = 0;
+    if (legacyChunks) state.total = legacyPositions.size();
+    report(true);
+    if (legacyChunks) {
+        for (const auto& pos : legacyPositions) {
+            if (stop.load()) return result;
+            ++state.keys;
+            ++state.processed;
+            report();
+            if (pending.contains(pos)) continue;
+            std::string raw;
+            const auto status = db->Get(options, bl::chunk_key{bl::chunk_key::Entity, pos}.to_raw(), &raw);
+            if (status.IsNotFound()) continue;
+            if (!status.ok()) throw std::runtime_error(status.ToString());
+            append(raw, pos.dim);
+        }
+    } else {
+        // Without a preloaded index, discover legacy keys while skipping modern actor runs.
+        auto actorEnd = std::string(bl::storage_key::actor);
+        auto digestEnd = std::string(bl::storage_key::actor_digest);
+        ++actorEnd.back();
+        ++digestEnd.back();
+        for (iterator->SeekToFirst(); iterator->Valid() && !stop.load();) {
+            ++state.keys;
+            ++state.processed;
+            report();
+            const auto key = iterator->key();
+            const std::string_view keyView(key.data(), key.size());
+            const auto chunkKey = bl::chunk_key::parse(keyView);
+            if (chunkKey.valid()) {
+                if (chunkKey.type == bl::chunk_key::Entity && !pending.contains(chunkKey.cp))
+                    append(std::string_view(iterator->value().data(), iterator->value().size()), chunkKey.cp.dim);
+            } else if (keyView.starts_with(bl::storage_key::actor)) {
+                iterator->Seek(actorEnd);
+                continue;
+            } else if (keyView.starts_with(bl::storage_key::actor_digest)) {
+                iterator->Seek(digestEnd);
+                continue;
+            }
+            iterator->Next();
+        }
+        if (!iterator->status().ok()) throw std::runtime_error(iterator->status().ToString());
+    }
+    report(true);
     return result;
 }
 

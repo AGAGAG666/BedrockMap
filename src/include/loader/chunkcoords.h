@@ -280,6 +280,11 @@ class ChunkCoordsIndex {
         return count;
     }
 
+    [[nodiscard]] std::vector<bl::chunk_pos> legacyEntityChunks() const {
+        auto lock = lockForInteractive();
+        return std::vector<bl::chunk_pos>(legacy_entity_chunks_.begin(), legacy_entity_chunks_.end());
+    }
+
     /// Snapshot all present chunk coordinates in one dimension.
     [[nodiscard]] std::vector<bl::chunk_pos> chunksInDimension(int32_t dim) const;
 
@@ -317,6 +322,7 @@ class ChunkCoordsIndex {
         }
         interactive_.store(false, std::memory_order_release);
         regions_by_dimension_.clear();
+        legacy_entity_chunks_.clear();
         bounds_by_dimension_.clear();
         bounds_dirty_.clear();
         queued_writes_.clear();
@@ -339,6 +345,7 @@ class ChunkCoordsIndex {
     void rebuildBoundingBox(int32_t dim) const;
 
     std::unordered_map<int32_t, RegionSet> regions_by_dimension_;
+    std::unordered_set<bl::chunk_pos> legacy_entity_chunks_;
     mutable std::unordered_map<int32_t, ChunkCoordsBoundingBox> bounds_by_dimension_;
     mutable std::unordered_set<int32_t> bounds_dirty_;
     /// Writes queued while the index is rebuilding.

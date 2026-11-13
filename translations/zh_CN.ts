@@ -4186,6 +4186,41 @@ Current version: %2</source>
         <source>Could not scan world entities.</source>
         <translation>无法扫描世界实体。</translation>
     </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Cancelling scan…</source>
+        <translation>正在取消扫描……</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading pending entity edits… %1 entities</source>
+        <translation>正在读取未保存的实体修改……%1 个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading entity index… %1 entries, %2 records checked, %3 entities</source>
+        <translation>正在读取实体索引……%1 条索引，已检查 %2 条记录，%3 个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading legacy entities… %1 / %2 entries, %3 entities</source>
+        <translation>正在读取旧版实体……%1 / %2 条记录，%3 个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Finding legacy entities… %1 keys, %2 entities</source>
+        <translation>正在查找旧版实体……%1 个键，%2 个实体</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Grouping entities… %1 / %2</source>
+        <translation>正在按区域整理实体……%1 / %2</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Preparing region summaries… %1 / %2 entities</source>
+        <translation>正在整理区域摘要……%1 / %2 个实体</translation>
+    </message>
 </context>
 <context>
     <name>WorldEntityPage</name>
@@ -4208,11 +4243,6 @@ Current version: %2</source>
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Each region is 16 × 16 blocks. Click a region to locate it on the map.</source>
         <translation>每个区域为 16×16 格。点击区域可在地图上定位。</translation>
-    </message>
-    <message>
-        <location filename="../src/qml/WorldEntityPage.qml"/>
-        <source>Scanning world… %1 keys</source>
-        <translation>正在扫描世界……%1 个键</translation>
     </message>
     <message>
         <location filename="../src/qml/WorldEntityPage.qml"/>

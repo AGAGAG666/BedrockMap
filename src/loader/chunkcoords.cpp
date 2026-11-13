@@ -295,6 +295,7 @@ bool ChunkCoordsIndex::load(bl::bedrock_level& level, const std::atomic_bool& st
     {
         std::lock_guard<QMutex> lock(mutex_);
         regions_by_dimension_.clear();
+        legacy_entity_chunks_.clear();
         bounds_by_dimension_.clear();
         bounds_dirty_.clear();
         interactive_.store(false, std::memory_order_release);
@@ -340,6 +341,7 @@ bool ChunkCoordsIndex::load(bl::bedrock_level& level, const std::atomic_bool& st
             continue;
         }
 
+        if (chunk_key.type == bl::chunk_key::Entity) legacy_entity_chunks_.insert(chunk_key.cp);
         ++chunkKeys;
         bool markerPresent = false;
         for (auto marker : bl::raw_chunk::MARKER_KEYS) {

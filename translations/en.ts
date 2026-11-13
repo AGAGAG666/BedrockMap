@@ -4186,6 +4186,41 @@ Current version: %2</translation>
         <source>Could not scan world entities.</source>
         <translation>Could not scan world entities.</translation>
     </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Cancelling scan…</source>
+        <translation>Cancelling scan…</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading pending entity edits… %1 entities</source>
+        <translation>Reading pending entity edits… %1 entities</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading entity index… %1 entries, %2 records checked, %3 entities</source>
+        <translation>Reading entity index… %1 entries, %2 records checked, %3 entities</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Reading legacy entities… %1 / %2 entries, %3 entities</source>
+        <translation>Reading legacy entities… %1 / %2 entries, %3 entities</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Finding legacy entities… %1 keys, %2 entities</source>
+        <translation>Finding legacy entities… %1 keys, %2 entities</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Grouping entities… %1 / %2</source>
+        <translation>Grouping entities… %1 / %2</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/worldentitycontroller.cpp"/>
+        <source>Preparing region summaries… %1 / %2 entities</source>
+        <translation>Preparing region summaries… %1 / %2 entities</translation>
+    </message>
 </context>
 <context>
     <name>WorldEntityPage</name>
@@ -4208,11 +4243,6 @@ Current version: %2</translation>
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Each region is 16 × 16 blocks. Click a region to locate it on the map.</source>
         <translation>Each region is 16 × 16 blocks. Click a region to locate it on the map.</translation>
-    </message>
-    <message>
-        <location filename="../src/qml/WorldEntityPage.qml"/>
-        <source>Scanning world… %1 keys</source>
-        <translation>Scanning world… %1 keys</translation>
     </message>
     <message>
         <location filename="../src/qml/WorldEntityPage.qml"/>

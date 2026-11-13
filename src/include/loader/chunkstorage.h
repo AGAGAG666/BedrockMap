@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "bedrock_level.h"
@@ -22,6 +23,17 @@ struct WorldEntityRecord {
     float x, y, z;
     std::string identifier;
     std::string customName;
+};
+
+enum class WorldEntityScanStage { Preparing, ModernEntities, LegacyEntities, Grouping, Summaries };
+
+struct WorldEntityScanProgress {
+    WorldEntityScanStage stage{WorldEntityScanStage::Preparing};
+    uint64_t keys{0};
+    uint64_t entities{0};
+    uint64_t processed{0};
+    std::optional<uint64_t> total;
+    uint64_t actorReads{0};
 };
 
 struct WorldEntityScanResult {
@@ -65,7 +77,9 @@ class ChunkStorage {
     bool clearChunkEntities(const bl::chunk_pos& pos);
     std::vector<bl::chunk_pos> pendingChunkPositions() const;
     void replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan);
-    WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop, const std::function<void(uint64_t)>& progress);
+    WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop,
+        const std::function<void(const WorldEntityScanProgress&)>& progress,
+        const std::optional<std::vector<bl::chunk_pos>>& legacyChunks);
 
     /// True when the chunk has an uncommitted edit held in memory (a replacement
     /// or a delete marker) rather than in LevelDB.
@@ -82,6 +96,7 @@ class ChunkStorage {
    private:
     bl::bedrock_level level_{true};
     RawChunkCache cache_;
+    std::unordered_set<bl::chunk_pos> added_legacy_entity_chunks_;
     mutable std::mutex mutex_;
     CommitError last_commit_error_{CommitError::None};
 };

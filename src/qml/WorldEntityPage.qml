@@ -63,8 +63,8 @@ Item {
             Layout.fillWidth: true
             visible: !!page.controller
             text: !page.controller ? "" : page.controller.loading
-                  ? qsTr("Scanning world… %1 keys").arg(page.controller.scannedKeys)
-                  : qsTr("%1 entities in %2 regions").arg(page.controller.entityCount).arg(page.controller.regionCount)
+                  ? page.controller.progressText
+                  : qsTr("%1 entities in %2 regions").arg(String(page.controller.entityCount)).arg(String(page.controller.regionCount))
             color: Theme.text
             font.pixelSize: Theme.fontBody
             wrapMode: Text.Wrap
@@ -80,7 +80,7 @@ Item {
         Text {
             Layout.fillWidth: true
             visible: !!page.controller && page.controller.skippedRecords > 0
-            text: qsTr("Skipped %1 unreadable or missing entity records.").arg(page.controller ? page.controller.skippedRecords : 0)
+            text: qsTr("Skipped %1 unreadable or missing entity records.").arg(String(page.controller ? page.controller.skippedRecords : 0))
             color: Theme.warning
             font.pixelSize: Theme.fontBody
             wrapMode: Text.Wrap
@@ -135,7 +135,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            text: regionRow.dimensionName + " · " + qsTr("%1 entities").arg(regionRow.regionEntityCount)
+                            text: regionRow.dimensionName + " · " + qsTr("%1 entities").arg(String(regionRow.regionEntityCount))
                             color: Theme.text
                             font.pixelSize: Theme.fontSubtitle
                             wrapMode: Text.Wrap
