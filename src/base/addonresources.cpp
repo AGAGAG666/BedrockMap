@@ -249,10 +249,10 @@ namespace {
         const int alpha = blend ? int(weight / (quint64(img.width()) * img.height())) : 255;
         return QColor(int(r / weight), int(g / weight), int(b / weight), alpha);
     }
-    QHash<QString, QString> textureTable(const Pack& p, const QString& file, QStringList* warnings) {
-        QHash<QString, QString> result;
+    QHash<QString, QJsonValue> textureTable(const Pack& p, const QString& file, QStringList* warnings) {
+        QHash<QString, QJsonValue> result;
         const auto entries = json(p.get(file), warnings, file).object().value("texture_data").toObject();
-        for (auto i = entries.begin(); i != entries.end(); ++i) result.insert(i.key(), texturePath(i.value()));
+        for (auto i = entries.begin(); i != entries.end(); ++i) result.insert(i.key(), i.value());
         return result;
     }
     QString textureReference(const QJsonValue& value) {
@@ -283,9 +283,19 @@ namespace {
         const Pack* pack = nullptr;
         QString path;
     };
-    QImage locateImage(const QHash<QString, LocatedTexture>& table, const QString& name) {
+    QImage locateImage(const QHash<QString, LocatedTexture>& table, const QString& name, const QHash<QString, LocatedTexture>& files) {
         const auto entry = table.value(name);
+        const auto replacement = files.value(entry.path);
+        if (replacement.pack) return image(*replacement.pack, replacement.path);
         return entry.pack ? image(*entry.pack, entry.path) : QImage{};
+    }
+    QString indexedTexture(QJsonValue value, int index) {
+        if (value.isObject() && value.toObject().contains("textures")) value = value.toObject().value("textures");
+        if (value.isArray()) {
+            const auto variants = value.toArray();
+            return index >= 0 && index < variants.size() ? texturePath(variants[index]) : QString{};
+        }
+        return index == 0 ? texturePath(value) : QString{};
     }
     QImage cubeIcon(const QImage& skin, const QJsonObject& geometry) {
         const auto description = geometry.value("description").toObject();
@@ -346,15 +356,16 @@ namespace {
         return {};
     }
     void process(const QList<Pack>& packs, AddonResources& out) {
-        QHash<QString, LocatedTexture> items, terrain, rawTextures;
+        QHash<QString, QJsonValue> items;
+        QHash<QString, LocatedTexture> terrain, rawTextures;
         QHash<QString, QJsonObject> geometries;
         QHash<QString, QString> namesEn, namesZh;
         for (const auto& p : packs)
             if (p.type == "resources") {
                 const auto item = textureTable(p, "textures/item_texture.json", &out.warnings);
-                for (auto i = item.begin(); i != item.end(); ++i) items.insert(i.key(), {&p, i.value()});
+                for (auto i = item.begin(); i != item.end(); ++i) items.insert(i.key(), i.value());
                 const auto blocks = textureTable(p, "textures/terrain_texture.json", &out.warnings);
-                for (auto i = blocks.begin(); i != blocks.end(); ++i) terrain.insert(i.key(), {&p, i.value()});
+                for (auto i = blocks.begin(); i != blocks.end(); ++i) terrain.insert(i.key(), {&p, texturePath(i.value())});
                 for (const auto& path : p.paths) {
                     if (path.startsWith("textures/") &&
                         (path.endsWith(".png", Qt::CaseInsensitive) || path.endsWith(".tga", Qt::CaseInsensitive))) {
@@ -363,6 +374,16 @@ namespace {
                     }
                     if ((path.startsWith("models/") || path.startsWith("model/")) && path.endsWith(".json", Qt::CaseInsensitive)) {
                         const auto object = json(p.get(path), &out.warnings, path).object();
+                        for (auto it = object.begin(); it != object.end(); ++it) {
+                            if (!it.key().startsWith("geometry.") || !it.value().isObject()) continue;
+                            auto legacy = it.value().toObject();
+                            QJsonObject description;
+                            description.insert("identifier", it.key());
+                            description.insert("texture_width", legacy.value("texturewidth").toInt(64));
+                            description.insert("texture_height", legacy.value("textureheight").toInt(64));
+                            legacy.insert("description", description);
+                            geometries.insert(it.key(), legacy);
+                        }
                         for (const auto& value : object.value("minecraft:geometry").toArray()) {
                             const auto geometry = value.toObject();
                             const auto id = geometry.value("description").toObject().value("identifier").toString();
@@ -389,7 +410,7 @@ namespace {
                 for (auto i = blocks.begin(); i != blocks.end(); ++i) {
                     if (!i.value().isObject()) continue;
                     const auto ref = textureReference(i.value().toObject().value("textures"));
-                    const QColor color = average(locateImage(terrain, ref));
+                    const QColor color = average(locateImage(terrain, ref, rawTextures));
                     if (color.isValid()) out.blockColors.insert(i.key().contains(':') ? i.key() : "minecraft:" + i.key(), color);
                 }
                 for (const auto& path : p.paths)
@@ -407,12 +428,15 @@ namespace {
                         entity.name = chinese ? namesZh.value(key, namesEn.value(key, id)) : namesEn.value(key, namesZh.value(key, id));
                         const auto egg = description.value("spawn_egg").toObject();
                         const QString eggTexture = egg.value("texture").toString();
-                        if (!eggTexture.isEmpty()) entity.icon = locateImage(items, eggTexture);
+                        if (!eggTexture.isEmpty()) {
+                            const auto path = indexedTexture(items.value(eggTexture), egg.value("texture_index").toInt(0));
+                            entity.icon = locateImage(rawTextures, path, rawTextures);
+                        }
                         if (entity.icon.isNull()) {
                             const auto textures = description.value("textures").toObject();
                             const auto texture = defaultReference(textures);
                             const auto geometry = defaultReference(description.value("geometry").toObject());
-                            entity.icon = cubeIcon(locateImage(rawTextures, texture), geometries.value(geometry));
+                            entity.icon = cubeIcon(locateImage(rawTextures, texture, rawTextures), geometries.value(geometry));
                         }
                     }
             } else if (p.type == "data") {
@@ -440,13 +464,13 @@ namespace {
                         const auto components = block.value("components").toObject();
                         const auto materials = components.value("minecraft:material_instances");
                         QString ref = textureReference(materials);
-                        QColor color = average(locateImage(terrain, ref), blendedMaterial(materials));
+                        QColor color = average(locateImage(terrain, ref, rawTextures), blendedMaterial(materials));
                         if (!color.isValid())
                             for (const auto& permutation : block.value("permutations").toArray()) {
                                 const auto material =
                                     permutation.toObject().value("components").toObject().value("minecraft:material_instances");
                                 ref = textureReference(material);
-                                color = average(locateImage(terrain, ref), blendedMaterial(material));
+                                color = average(locateImage(terrain, ref, rawTextures), blendedMaterial(material));
                                 if (color.isValid()) break;
                             }
                         if (!color.isValid()) {

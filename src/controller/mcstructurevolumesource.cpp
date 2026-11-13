@@ -138,8 +138,8 @@ namespace {
         return parseMcstructure(read.data);
     }
 
-    std::shared_ptr<VoxelSceneData> buildScene(const bl::mcstructure& structure) {
-        auto grid = voxel_mesh::createVoxelDataFromMcstructure(structure, resources_);
+    std::shared_ptr<VoxelSceneData> buildScene(const bl::mcstructure& structure, const ResourceManager* resources) {
+        auto grid = voxel_mesh::createVoxelDataFromMcstructure(structure, resources);
         auto scene = std::make_shared<VoxelSceneData>();
         if (const auto bounds = voxel_mesh::fullBounds(grid)) {
             auto mesh = voxel_mesh::build(grid, *bounds);
@@ -183,7 +183,7 @@ std::shared_ptr<BlockVolumeLoadResult> McstructureVolumeSource::load(const std::
     }
     reportProgress(45);
     volume_ = std::move(data.structure);
-    result->scene = buildScene(*volume_);
+    result->scene = buildScene(*volume_, resources_);
     result->documentRoot = std::move(data.root);
     result->documentTitle =
         url_.isEmpty() ? QCoreApplication::translate("BlockVolumeController", "Clipboard") : io::DocumentIo::displayName(url_);
