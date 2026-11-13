@@ -396,7 +396,8 @@ namespace {
                 for (auto i = zh.begin(); i != zh.end(); ++i) namesZh.insert(i.key(), i.value());
             }
         QString locale = setting::current().language;
-        if (locale.isEmpty()) locale = QLocale::system().language() == QLocale::Chinese ? "zh_CN" : "en_US";
+        if (locale.isEmpty() || locale == QStringLiteral("system"))
+            locale = QLocale::system().language() == QLocale::Chinese ? "zh_CN" : "en_US";
         const bool chinese = locale.startsWith("zh", Qt::CaseInsensitive);
         QList<const Pack*> definitions;
         for (const auto& p : packs)
