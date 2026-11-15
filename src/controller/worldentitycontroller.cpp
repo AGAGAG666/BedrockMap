@@ -24,6 +24,7 @@ WorldEntityController::WorldEntityController(QObject* parent) : QAbstractListMod
                 beginResetModel();
                 regions_ = std::move(result->regions);
                 resources_ = std::move(result->resources);
+                rebuildMapIndex();
                 entity_count_ = result->entityCount;
                 skipped_records_ = result->skippedRecords;
                 endResetModel();
@@ -93,9 +94,57 @@ void WorldEntityController::removeDeletedRegion(int row, quint64 previousRevisio
     beginRemoveRows({}, row, row);
     entity_count_ -= regions_[row].entities.size();
     regions_.erase(regions_.begin() + row);
+    rebuildMapIndex();
     endRemoveRows();
     stale_ = revision_ != previousRevision + 1;
     emit stateChanged();
+}
+
+void WorldEntityController::rebuildMapIndex() {
+    map_index_.clear();
+    for (size_t row = 0; row < regions_.size(); ++row) {
+        const auto pos = regions_[row].pos;
+        map_index_[pos.dim][pos.x][pos.z] = row;
+    }
+}
+
+QVector<ActorSprite> WorldEntityController::actorSprites(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, int dimension,
+    const MapFilter& filter, int renderStyle, int maxSprites) const {
+    QVector<ActorSprite> result;
+    if (!loaded_ || stale_ || maxSprites <= 0 || maxChunkX < minChunkX || maxChunkZ < minChunkZ) return result;
+    const auto dimensionIt = map_index_.find(dimension);
+    if (dimensionIt == map_index_.end()) return result;
+    for (auto x = dimensionIt->second.lower_bound(minChunkX); x != dimensionIt->second.end() && x->first <= maxChunkX; ++x) {
+        for (auto z = x->second.lower_bound(minChunkZ); z != x->second.end() && z->first <= maxChunkZ; ++z) {
+            const auto& region = regions_[z->second];
+            struct Count {
+                uint64_t value{0};
+                bl::vec3 position{0.0f, 0.0f, 0.0f};
+            };
+            std::map<const QImage*, Count, std::less<const QImage*>> counts;
+            for (const auto& [identifier, marker] : region.markers) {
+                const auto key = identifier.starts_with("minecraft:") ? identifier.substr(10) : identifier;
+                if (!marker.icon || ((filter.actors_list_.count(key) == 0) != filter.actor_black_mode_)) continue;
+                if (renderStyle == 0) {
+                    for (const auto index : marker.entityIndices) {
+                        const auto& entity = region.entities[index];
+                        result.append(ActorSprite{marker.icon, entity.x, entity.z, 1.0f, resources_});
+                        if (result.size() >= maxSprites) return result;
+                    }
+                } else {
+                    auto& count = counts[marker.icon];
+                    count.value += marker.count;
+                    count.position = marker.lastPosition;
+                }
+            }
+            for (const auto& [icon, count] : counts) {
+                result.append(ActorSprite{icon, count.position.x, count.position.z,
+                    static_cast<float>(std::log2(static_cast<double>(count.value) + 1.0)), resources_});
+                if (result.size() >= maxSprites) return result;
+            }
+        }
+    }
+    return result;
 }
 
 void WorldEntityController::setError(const QString& error) {
@@ -132,6 +181,7 @@ void WorldEntityController::setLoader(AsyncLevelLoader* loader) {
     loader_ = loader;
     beginResetModel();
     regions_.clear();
+    map_index_.clear();
     entity_count_ = skipped_records_ = 0;
     progress_ = {};
     resources_.reset();
@@ -236,18 +286,22 @@ std::shared_ptr<WorldEntityController::Result> WorldEntityController::scan(Async
         result->regions.reserve(regions.size());
         for (auto& [pos, region] : regions) {
             if (stop.load()) return result;
-            std::map<std::string, uint64_t> counts;
-            for (const auto& entity : region.entities) {
+            for (size_t index = 0; index < region.entities.size(); ++index) {
+                const auto& entity = region.entities[index];
                 if (stop.load()) return result;
-                ++counts[entity.identifier];
+                auto& marker = region.markers[entity.identifier];
+                ++marker.count;
+                marker.lastPosition = {entity.x, entity.y, entity.z};
+                if (marker.entityIndices.size() < static_cast<size_t>(actor_sprite_limit)) marker.entityIndices.push_back(index);
                 ++state.processed;
                 report();
             }
             QStringList summary;
-            for (const auto& [identifier, count] : counts) {
+            for (auto& [identifier, marker] : region.markers) {
                 const auto id = QString::fromStdString(identifier);
                 const auto label = resources ? resources->actorLabel(id) : id;
-                summary.append(label + QStringLiteral(" × ") + QString::number(count));
+                marker.icon = resources ? resources->actorImage(id) : nullptr;
+                summary.append(label + QStringLiteral(" × ") + QString::number(marker.count));
             }
             region.summary = summary.join(QStringLiteral("; "));
             result->regions.push_back(std::move(region));

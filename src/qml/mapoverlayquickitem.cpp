@@ -126,6 +126,11 @@ void MapOverlayQuickItem::setProvider(TerrainDataProvider* provider) {
     provider_ = provider;
     atlas_icons_.clear();
     if (provider_) {
+        connect(provider_, &TerrainDataProvider::actorsChanged, this, [this] {
+            atlas_icons_.clear();
+            clearEntities();
+            scheduleEntityRefresh();
+        });
         connect(provider_, &TerrainDataProvider::tileReady, this, &MapOverlayQuickItem::scheduleEntityRefresh);
         connect(provider_, &TerrainDataProvider::tileReady, this, &MapOverlayQuickItem::scheduleRectRefresh);
         connect(provider_, &TerrainDataProvider::regionEmpty, this, &MapOverlayQuickItem::scheduleEntityRefresh);

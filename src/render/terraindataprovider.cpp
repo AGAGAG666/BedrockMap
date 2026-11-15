@@ -9,6 +9,7 @@
 #include <limits>
 
 #include "base/platform.h"
+#include "controller/worldentitycontroller.h"
 #include "loader/asynclevelloader.h"
 #include "render/terraintiles.h"
 
@@ -176,6 +177,7 @@ void TerrainDataProvider::setLoader(AsyncLevelLoader* loader) {
         disconnect(loader_, nullptr, this, nullptr);
     }
     loader_ = loader;
+    emit actorsChanged();
     snapshot_cache_.clear();
     resetDelivery();
     if (!loader_) {
@@ -209,6 +211,14 @@ void TerrainDataProvider::setLoader(AsyncLevelLoader* loader) {
         },
         Qt::QueuedConnection);
     schedulePoll();
+}
+
+void TerrainDataProvider::setWorldEntities(WorldEntityController* entities) {
+    if (world_entities_ == entities) return;
+    if (world_entities_) disconnect(world_entities_, nullptr, this, nullptr);
+    world_entities_ = entities;
+    if (world_entities_) connect(world_entities_, &WorldEntityController::stateChanged, this, &TerrainDataProvider::actorsChanged);
+    emit actorsChanged();
 }
 
 void TerrainDataProvider::setTimings(const std::shared_ptr<RenderTimings>& timings) {
@@ -362,6 +372,7 @@ void TerrainDataProvider::redeliver() {
 
 void TerrainDataProvider::reload() {
     if (!loader_) return;
+    emit actorsChanged();
     snapshot_cache_.clear();
     resetDelivery();
     requestCatchUp();
@@ -441,6 +452,9 @@ QVector<ActorSprite> TerrainDataProvider::actorSprites(int min_chunk_x, int min_
     QVector<ActorSprite> result;
     if (!active_ || !loader_ || !loader_->isOpen() || max_chunk_x < min_chunk_x || max_chunk_z < min_chunk_z || max_sprites <= 0)
         return result;
+    if (world_entities_ && world_entities_->loaded() && !world_entities_->stale())
+        return world_entities_->actorSprites(min_chunk_x, min_chunk_z, max_chunk_x, max_chunk_z, dimension,
+                                            loader_->filter(), render_style, max_sprites);
     const int region_x0 = floorDiv(min_chunk_x, constant::RW) * constant::RW;
     const int region_z0 = floorDiv(min_chunk_z, constant::RW) * constant::RW;
     const int region_x1 = floorDiv(max_chunk_x, constant::RW) * constant::RW;

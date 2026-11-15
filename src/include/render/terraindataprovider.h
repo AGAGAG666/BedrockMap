@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QPointer>
 #include <QRegion>
 #include <QString>
 #include <QStringList>
@@ -25,6 +26,7 @@
 #include "render/terraintiles.h"
 
 class AsyncLevelLoader;
+class WorldEntityController;
 
 /// CPU-only worker used by the QML tile stream. It deliberately lives with the
 /// stream instead of forming another public rendering layer.
@@ -111,6 +113,7 @@ class TerrainDataProvider final : public QObject {
     [[nodiscard]] bool overviewEnabled() const;
     void setTimings(const std::shared_ptr<RenderTimings>& timings);
     void setLoader(AsyncLevelLoader* loader);
+    void setWorldEntities(WorldEntityController* entities);
     /// Visible sessions poll on demand. Hidden sessions keep their caches and
     /// view state, but stop sampling the loader and drop queued render work.
     void setActive(bool active);
@@ -140,10 +143,10 @@ class TerrainDataProvider final : public QObject {
     /// the viewport switches to that level while they are running.
     void prefetchCoarserLevels(int max_levels = 2);
     [[nodiscard]] int blocksPerTexel() const { return blocks_per_texel_; }
-    /// Actors and consolidated actor markers inside a chunk-space window. The
-    /// caller owns drawing; this only snapshots the already-cached region data.
+    /// Actors inside a chunk-space window, from the completed world entity
+    /// scan or the cached terrain regions. The caller owns drawing.
     [[nodiscard]] QVector<ActorSprite> actorSprites(int min_chunk_x, int min_chunk_z, int max_chunk_x, int max_chunk_z, int dimension,
-                                                    int render_style, int max_sprites = 20000);
+                                                    int render_style, int max_sprites = actor_sprite_limit);
     [[nodiscard]] QVector<OverlayRect> hsaRects(int min_chunk_x, int min_chunk_z, int max_chunk_x, int max_chunk_z, int dimension);
     [[nodiscard]] QImage slimeChunkImage(const region_pos& pos);
     Q_INVOKABLE void clear();
@@ -168,6 +171,7 @@ class TerrainDataProvider final : public QObject {
    signals:
     void overviewReady(const QImage& image, const QRect& chunkWindow, int dimension);
     void metricsChanged();
+    void actorsChanged();
     /// One finished atlas tile for a region, already sampled at
     /// `blocks_per_texel`, so the render thread only has to upload it. The level
     /// travels with the tile: a re-sample for a new zoom level is handed over
@@ -246,6 +250,7 @@ class TerrainDataProvider final : public QObject {
     };
 
     AsyncLevelLoader* loader_{nullptr};
+    QPointer<WorldEntityController> world_entities_;
     std::shared_ptr<RenderTimings> timings_;
     QTimer poll_timer_;
     QTimer prefetch_timer_;

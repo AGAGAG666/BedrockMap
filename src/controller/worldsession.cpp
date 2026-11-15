@@ -135,6 +135,7 @@ void WorldSession::setActive(bool active) {
 void WorldSession::ensureTerrainData() {
     if (terrain_data_) return;
     terrain_data_ = std::make_unique<TerrainDataProvider>(this);
+    terrain_data_->setWorldEntities(&world_entities_);
     // The session may already be active when its renderer-independent provider
     // is created. In that case no later activeChanged signal will arrive.
     terrain_data_->setActive(active());

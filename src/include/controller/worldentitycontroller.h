@@ -4,16 +4,20 @@
 #include <QAbstractListModel>
 #include <QFutureWatcher>
 #include <QVariantList>
+#include <QVector>
 #include <atomic>
 #include <functional>
 #include <cstdint>
 #include <memory>
+#include <map>
 #include <vector>
 #include "geometry.h"
 #include "loader/chunkstorage.h"
+#include "render/overlay.h"
 
 class AsyncLevelLoader;
 class ResourceManager;
+struct MapFilter;
 
 class WorldEntityController final : public QAbstractListModel {
     Q_OBJECT
@@ -50,6 +54,8 @@ class WorldEntityController final : public QAbstractListModel {
     std::vector<WorldEntityTarget> regionTargets(int row) const;
     void removeDeletedRegion(int row, quint64 previousRevision);
     void stopAndWait();
+    QVector<ActorSprite> actorSprites(int minChunkX, int minChunkZ, int maxChunkX, int maxChunkZ, int dimension,
+                                     const MapFilter& filter, int renderStyle, int maxSprites) const;
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE QVariantList entitiesForRegion(int row) const;
@@ -60,11 +66,18 @@ class WorldEntityController final : public QAbstractListModel {
 
    private:
     enum Role { Dimension = Qt::UserRole + 1, DimensionName, StartX, StartZ, RegionEntityCount, EntitySummary };
+    struct MarkerGroup {
+        const QImage* icon{nullptr};
+        uint64_t count{0};
+        bl::vec3 lastPosition{0.0f, 0.0f, 0.0f};
+        std::vector<size_t> entityIndices;
+    };
     struct Region {
         bl::chunk_pos pos;
         QString dimensionName;
         QString summary;
         std::vector<WorldEntityRecord> entities;
+        std::map<std::string, MarkerGroup> markers;
     };
     struct Result {
         std::shared_ptr<const ResourceManager> resources;
@@ -76,10 +89,12 @@ class WorldEntityController final : public QAbstractListModel {
     static std::shared_ptr<Result> scan(AsyncLevelLoader* loader, const std::shared_ptr<const ResourceManager>& resources,
         const std::optional<std::vector<bl::chunk_pos>>& legacyChunks, const std::atomic_bool& stop,
         const std::function<void(const WorldEntityScanProgress&)>& progress);
+    void rebuildMapIndex();
     AsyncLevelLoader* loader_{nullptr};
     QFutureWatcher<std::shared_ptr<Result>> watcher_;
     std::shared_ptr<const ResourceManager> resources_;
     std::vector<Region> regions_;
+    std::map<int, std::map<int, std::map<int, size_t>>> map_index_;
     std::atomic_bool stop_{false};
     quint64 revision_{0};
     quint64 scan_revision_{0};

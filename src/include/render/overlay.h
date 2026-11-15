@@ -7,8 +7,10 @@
 class QImage;
 class ResourceManager;
 
-/// One entity/marker icon at a world position. Coordinates are in blocks, as
-/// stored by ChunkRegion; the overlay converts them with the camera transform.
+inline constexpr int actor_sprite_limit = 20000;
+
+/// One entity/marker icon at a world position. Coordinates are in blocks;
+/// the overlay converts them with the camera transform.
 struct ActorSprite {
     const QImage* icon{nullptr};
     float block_x{0.0f};
