@@ -22,7 +22,7 @@ Item {
         objectName: "mcstructurePanes"
         orientation: page.stacked ? Qt.Vertical : Qt.Horizontal
         handle: AppSplitHandle {
-            orientation: SplitView.view.orientation
+            orientation: panes.orientation
         }
 
         NbtEditorSurface {

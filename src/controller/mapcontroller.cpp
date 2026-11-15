@@ -393,9 +393,26 @@ bool MapController::deleteRegionEntitiesAsync(std::vector<WorldEntityTarget> tar
     QRegion affected(QRect(region.x, region.z, 1, 1));
     for (const auto& target : targets) affected += QRect(target.sourceChunk.x, target.sourceChunk.z, 1, 1);
     return startRegionOperation([targets = std::move(targets), region](AsyncLevelLoader& loader, const QRegion&, int) {
-        const bool success = loader.deleteRegionEntities(targets, region);
-        return SelectionOperationResult::refreshSelection(success, success ? QString() :
-            MapController::tr("The region entities could not be deleted. Refresh the entity list and try again."));
+        const auto result = loader.deleteRegionEntities(targets, region);
+        if (result.success()) return SelectionOperationResult::refreshSelection(true);
+        QString reason;
+        using Error = WorldEntityDeleteResult::Error;
+        switch (result.error) {
+            case Error::WorldClosed: reason = MapController::tr("The world is closed."); break;
+            case Error::DimensionMismatch: reason = MapController::tr("The entity source dimension does not match the region."); break;
+            case Error::SourceChunkUnavailable: reason = MapController::tr("The entities' source chunk could not be loaded."); break;
+            case Error::InvalidNbt: reason = MapController::tr("The source chunk contains unreadable entity NBT."); break;
+            case Error::InvalidActor: reason = MapController::tr("An entity record is missing its identifier, position or unique ID."); break;
+            case Error::InvalidDigest: reason = MapController::tr("The source chunk has an invalid entity index."); break;
+            case Error::DatabaseRead: reason = MapController::tr("The world database could not be read."); break;
+            case Error::TargetMoved: reason = MapController::tr("An entity moved outside the region. Refresh the entity list."); break;
+            case Error::TargetMissing: reason = MapController::tr("The entity records changed. Refresh the entity list."); break;
+            case Error::None: break;
+        }
+        if (!result.detail.empty()) reason += QStringLiteral("\n") + QString::fromStdString(result.detail);
+        return SelectionOperationResult::refreshSelection(false,
+            MapController::tr("Could not delete region entities.\nSource chunk: X %1, Z %2, dimension %3\n%4")
+                .arg(result.source.x).arg(result.source.z).arg(result.source.dim).arg(reason));
     }, affected, region.dim);
 }
 

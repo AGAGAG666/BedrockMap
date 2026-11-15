@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
     FileOpenHandler fileOpenHandler(app);
     // Keep logging alive until all models, sessions and the QML engine exit.
     auto logs = std::make_unique<LogModel>(argc, argv);
-    LOG_F(INFO, "BedrockMap %s | Qt %s | Controls style %s", BEDROCKMAP_VERSION, qVersion(),
+    LOG_F(INFO, "BedrockMap %s+%s | Qt %s | Controls style %s", BEDROCKMAP_VERSION, GIT_COMMIT_HASH, qVersion(),
           qgetenv("QT_QUICK_CONTROLS_STYLE").constData());
     setting::init();
     setupGraphicsBackend();

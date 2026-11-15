@@ -144,7 +144,7 @@ Item {
         }
         function onOperationFailed(message) {
             canvas.operationText = ""
-            App.notifications.error(qsTr("Map operation failed"))
+            App.notifications.error(qsTr("Map operation failed"), "", message)
         }
         function onDimensionChanged() {
             canvas.refreshHoverBlock(true)

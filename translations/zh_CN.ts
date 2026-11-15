@@ -1374,8 +1374,57 @@
     </message>
     <message>
         <location filename="../src/controller/mapcontroller.cpp"/>
-        <source>The region entities could not be deleted. Refresh the entity list and try again.</source>
-        <translation>无法删除该区域的实体，请刷新实体列表后重试。</translation>
+        <source>The world is closed.</source>
+        <translation>世界已关闭。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entity source dimension does not match the region.</source>
+        <translation>实体来源维度与所选区域不一致。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entities' source chunk could not be loaded.</source>
+        <translation>无法加载这些实体的来源区块。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The source chunk contains unreadable entity NBT.</source>
+        <translation>来源区块包含无法读取的实体 NBT。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>An entity record is missing its identifier, position or unique ID.</source>
+        <translation>实体记录缺少标识符、位置或唯一 ID。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The source chunk has an invalid entity index.</source>
+        <translation>来源区块的实体索引格式无效。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The world database could not be read.</source>
+        <translation>无法读取世界数据库。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>An entity moved outside the region. Refresh the entity list.</source>
+        <translation>实体已移到区域外，请刷新实体列表。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entity records changed. Refresh the entity list.</source>
+        <translation>实体记录已发生变化，请刷新实体列表。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>Could not delete region entities.
+Source chunk: X %1, Z %2, dimension %3
+%4</source>
+        <translation>无法删除区域内的实体。
+来源区块：X %1，Z %2，维度 %3
+%4</translation>
     </message>
 </context>
 <context>

@@ -86,7 +86,7 @@ void NotificationCenter::post(NotificationLevel level, const QString& text, cons
               detailUtf8.constData());
     if (!entries_.isEmpty()) {
         auto& newest = entries_.last();
-        if (newest.level == level && newest.text == text && newest.source == source) {
+        if (newest.level == level && newest.text == text && newest.source == source && newest.detail == detail) {
             ++newest.repeat;
             if (!isSticky(level)) newest.expires_at_ms = nowMs() + (level == NotificationLevel::Warning ? warning_ms_ : info_ms_);
             emit dataChanged(index(entries_.size() - 1), index(entries_.size() - 1), {RepeatRole});

@@ -39,7 +39,7 @@ Item {
     property int section: 0
     readonly property bool coordinateInputValid: xField.text.length > 0 && zField.text.length > 0
                                                    && xField.acceptableInput && zField.acceptableInput
-    property bool restoringSection: false
+    property bool restoringSection: true
     property bool compact: Theme.compact
     property bool layerPanelOpen: false
     property bool mapFilterPanelOpen: false
@@ -61,9 +61,9 @@ Item {
 
     Connections {
         target: workspace.childPages
-        function onNavigated(previousRoute, nextRoute) {
-            if (workspace.session)
-                workspace.session.workspaceRoute = nextRoute
+        function onCurrentRouteChanged() {
+            if (workspace.session && !workspace.restoringSection)
+                workspace.session.workspaceRoute = workspace.childPages.currentRoute
         }
     }
 
@@ -372,9 +372,9 @@ Item {
     function restoreSessionState() {
         restoringSection = true
         section = session ? session.workspaceSection : 0
-        restoringSection = false
         const route = session ? session.workspaceRoute : "root"
         childPages.reset(childPages.routeDefinition(route) ? route : "root")
+        restoringSection = false
         layerPanelOpen = false
         mapFilterPanelOpen = false
     }
@@ -872,7 +872,7 @@ Item {
                 AppListRow {
                     iconName: "structure"
                     label: qsTr("3D view")
-                    dirty: !!workspace.session && workspace.session.voxelView.dirty
+                    dirty: !!workspace.session && workspace.session.dirty
                     compact: true
                     selected: workspace.voxelViewOpen
                     onClicked: workspace.toggleVoxelView()

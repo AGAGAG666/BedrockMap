@@ -27,6 +27,15 @@ struct WorldEntityRecord {
     int64_t uid;
 };
 
+struct WorldEntityDeleteResult {
+    enum class Error { None, WorldClosed, DimensionMismatch, SourceChunkUnavailable, InvalidNbt,
+                       InvalidActor, InvalidDigest, DatabaseRead, TargetMoved, TargetMissing };
+    Error error{Error::None};
+    bl::chunk_pos source;
+    std::string detail;
+    bool success() const { return error == Error::None; }
+};
+
 struct WorldEntityTarget {
     bl::chunk_pos sourceChunk;
     int64_t uid;
@@ -82,7 +91,7 @@ class ChunkStorage {
     void putMissing(const bl::chunk_pos& pos);
     void putRawChunk(const bl::raw_chunk& raw);
     bool clearChunkEntities(const bl::chunk_pos& pos);
-    bool deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region);
+    WorldEntityDeleteResult deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region);
     std::vector<bl::chunk_pos> pendingChunkPositions() const;
     void replayChunkIndex(ChunkCoordsService& coords, const std::vector<bl::chunk_pos>& beforeScan);
     WorldEntityScanResult scanWorldEntities(const std::atomic_bool& stop,

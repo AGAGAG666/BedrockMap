@@ -1374,8 +1374,57 @@
     </message>
     <message>
         <location filename="../src/controller/mapcontroller.cpp"/>
-        <source>The region entities could not be deleted. Refresh the entity list and try again.</source>
-        <translation>The region entities could not be deleted. Refresh the entity list and try again.</translation>
+        <source>The world is closed.</source>
+        <translation>The world is closed.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entity source dimension does not match the region.</source>
+        <translation>The entity source dimension does not match the region.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entities' source chunk could not be loaded.</source>
+        <translation>The entities' source chunk could not be loaded.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The source chunk contains unreadable entity NBT.</source>
+        <translation>The source chunk contains unreadable entity NBT.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>An entity record is missing its identifier, position or unique ID.</source>
+        <translation>An entity record is missing its identifier, position or unique ID.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The source chunk has an invalid entity index.</source>
+        <translation>The source chunk has an invalid entity index.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The world database could not be read.</source>
+        <translation>The world database could not be read.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>An entity moved outside the region. Refresh the entity list.</source>
+        <translation>An entity moved outside the region. Refresh the entity list.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>The entity records changed. Refresh the entity list.</source>
+        <translation>The entity records changed. Refresh the entity list.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mapcontroller.cpp"/>
+        <source>Could not delete region entities.
+Source chunk: X %1, Z %2, dimension %3
+%4</source>
+        <translation>Could not delete region entities.
+Source chunk: X %1, Z %2, dimension %3
+%4</translation>
     </message>
 </context>
 <context>

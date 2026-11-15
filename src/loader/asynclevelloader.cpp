@@ -125,10 +125,11 @@ bool AsyncLevelLoader::clearChunkEntities(const bl::chunk_pos& p) {
     return true;
 }
 
-bool AsyncLevelLoader::deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region) {
-    if (!loaded_.load() || !storage_.deleteRegionEntities(targets, region)) return false;
-    emit dirtyChanged();
-    return true;
+WorldEntityDeleteResult AsyncLevelLoader::deleteRegionEntities(const std::vector<WorldEntityTarget>& targets, const bl::chunk_pos& region) {
+    if (!loaded_.load()) return {WorldEntityDeleteResult::Error::WorldClosed, region, {}};
+    auto result = storage_.deleteRegionEntities(targets, region);
+    if (result.success()) emit dirtyChanged();
+    return result;
 }
 
 void AsyncLevelLoader::notifyDirtyChanged() { emit dirtyChanged(); }

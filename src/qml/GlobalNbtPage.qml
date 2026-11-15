@@ -125,7 +125,7 @@ Item {
             Layout.fillHeight: true
             orientation: previewBeside ? Qt.Horizontal : Qt.Vertical
             handle: AppSplitHandle {
-                orientation: SplitView.view.orientation
+                orientation: panes.orientation
             }
 
             NbtEditorSurface {
