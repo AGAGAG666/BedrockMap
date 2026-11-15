@@ -913,6 +913,16 @@
         <source>Could not save logs: %1</source>
         <translation>无法保存日志：%1</translation>
     </message>
+    <message>
+        <location filename="../src/model/logmodel.cpp"/>
+        <source>The selected log file is not available.</source>
+        <translation>所选日志文件不存在或无法访问。</translation>
+    </message>
+    <message>
+        <location filename="../src/model/logmodel.cpp"/>
+        <source>Choose a different file from the source log.</source>
+        <translation>请选择其他文件，不能覆盖源日志文件。</translation>
+    </message>
 </context>
 <context>
     <name>LogPage</name>
@@ -1012,6 +1022,26 @@
         <location filename="../src/qml/LogPage.qml"/>
         <source>%1 displayed / %2 retained | %3 older entries omitted</source>
         <translation>显示 %1 条 / 保留 %2 条 | 已省略 %3 条较早日志</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>Historical logs</source>
+        <translation>历史日志</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>No historical logs</source>
+        <translation>没有历史日志</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>History</source>
+        <translation>历史</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>Close</source>
+        <translation>关闭</translation>
     </message>
 </context>
 <context>

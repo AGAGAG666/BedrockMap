@@ -18,8 +18,9 @@ Control {
     palette.highlightedText: Theme.onAccent
     palette.placeholderText: Theme.muted
 
-    function openLogExport() {
-        const logPath = App.logs.logFile
+    function openLogExport(historyName) {
+        exportDialog.historyName = historyName || ""
+        const logPath = exportDialog.historyName.length > 0 ? exportDialog.historyName : App.logs.logFile
         const separator = Math.max(logPath.lastIndexOf("/"), logPath.lastIndexOf("\\"))
         const existingName = logPath.length > 0 ? logPath.substring(separator + 1) : ""
         const timestamp = Qt.formatDateTime(new Date(), "yyyyMMdd-HHmmss")
@@ -35,15 +36,62 @@ Control {
     }
     FileUrlDialog {
         id: exportDialog
+        property string historyName: ""
         title: qsTr("Export logs")
         fileMode: FileDialog.SaveFile
         defaultSuffix: "log"
         nameFilters: [qsTr("Log files (*.log *.txt)")]
         onAccepted: {
-            if (!App.logs.save(selectedUrl))
-                App.notifications.error(qsTr("Export failed"))
+            const saved = historyName.length > 0 ? App.logs.saveHistorical(historyName, selectedUrl) : App.logs.save(selectedUrl)
+            if (!saved)
+                App.notifications.error(qsTr("Export failed"), "", App.logs.error)
             else
                 App.notifications.info(qsTr("Export successful"))
+        }
+    }
+    AppDialog {
+        id: historyDialog
+        property var files: []
+        title: qsTr("Historical logs")
+        preferredWidth: Theme.ui(560)
+        preferredHeight: Theme.ui(440)
+        onClosed: files = []
+        footer: AppButton {
+            text: qsTr("Close")
+            onClicked: historyDialog.close()
+        }
+        contentItem: Item {
+            ListView {
+                id: historyList
+                anchors.fill: parent
+                model: historyDialog.files
+                clip: true
+                spacing: Theme.gapSmall
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                delegate: AppListRow {
+                    required property var modelData
+                    width: historyList.width
+                    iconName: "log"
+                    label: modelData.name
+                    detail: modelData.modified
+                    onClicked: {
+                        const name = modelData.name
+                        historyDialog.close()
+                        page.openLogExport(name)
+                    }
+                }
+            }
+            Text {
+                anchors.centerIn: parent
+                width: parent.width
+                visible: historyDialog.files.length === 0
+                text: qsTr("No historical logs")
+                horizontalAlignment: Text.AlignHCenter
+                wrapMode: Text.Wrap
+                color: Theme.muted
+                font.pixelSize: Theme.fontBody
+            }
         }
     }
     AppMenu {
@@ -197,18 +245,31 @@ Control {
                 font.pixelSize: Theme.fontCaption
                 wrapMode: Text.WordWrap
             }
-            Label {
+            RowLayout {
                 Layout.fillWidth: true
-                text: App.logs.logFile
-                color: Theme.muted
-                font.pixelSize: Theme.fontCaption
-                elide: Text.ElideMiddle
-                AppToolTip {
+                spacing: Theme.gapSmall
+                Label {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     text: App.logs.logFile
-                    shown: pathHover.hovered
+                    color: Theme.muted
+                    font.pixelSize: Theme.fontCaption
+                    elide: Text.ElideMiddle
+                    AppToolTip {
+                        text: App.logs.logFile
+                        shown: pathHover.hovered
+                    }
+                    HoverHandler {
+                        id: pathHover
+                    }
                 }
-                HoverHandler {
-                    id: pathHover
+                AppButton {
+                    text: qsTr("History")
+                    iconName: "log"
+                    onClicked: {
+                        historyDialog.files = App.logs.historicalFiles()
+                        historyDialog.open()
+                    }
                 }
             }
         }

@@ -913,6 +913,16 @@
         <source>Could not save logs: %1</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/model/logmodel.cpp"/>
+        <source>The selected log file is not available.</source>
+        <translation>The selected log file is not available.</translation>
+    </message>
+    <message>
+        <location filename="../src/model/logmodel.cpp"/>
+        <source>Choose a different file from the source log.</source>
+        <translation>Choose a different file from the source log.</translation>
+    </message>
 </context>
 <context>
     <name>LogPage</name>
@@ -1012,6 +1022,26 @@
         <location filename="../src/qml/LogPage.qml"/>
         <source>%1 displayed / %2 retained | %3 older entries omitted</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>Historical logs</source>
+        <translation>Historical logs</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>No historical logs</source>
+        <translation>No historical logs</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>History</source>
+        <translation>History</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/LogPage.qml"/>
+        <source>Close</source>
+        <translation>Close</translation>
     </message>
 </context>
 <context>

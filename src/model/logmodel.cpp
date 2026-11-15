@@ -3,11 +3,13 @@
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QGuiApplication>
 #include <QMutexLocker>
 #include <QStringList>
+#include <QVariantMap>
 #include <algorithm>
 #ifdef Q_OS_ANDROID
 #include <android/log.h>
@@ -270,19 +272,49 @@ void LogModel::copyAll() {
     copyText(snapshot());
 }
 
+QVariantList LogModel::historicalFiles() const {
+    QVariantList files;
+    const QDir directory(app_paths::logDirectory());
+    const auto entries = directory.entryInfoList({QStringLiteral("*.log")}, QDir::Files | QDir::NoSymLinks, QDir::Time);
+    for (const auto& entry : entries) {
+        if (entry.absoluteFilePath() == QFileInfo(log_file_).absoluteFilePath()) continue;
+        files.append(QVariantMap{{QStringLiteral("name"), entry.fileName()},
+            {QStringLiteral("modified"), entry.lastModified().toString(QStringLiteral("yyyy-MM-dd HH:mm:ss"))}});
+    }
+    return files;
+}
+
+bool LogModel::saveHistorical(const QString& fileName, const QUrl& destination) {
+    const QFileInfo source(QDir(app_paths::logDirectory()).filePath(fileName));
+    if (fileName.isEmpty() || QFileInfo(fileName).fileName() != fileName || !fileName.endsWith(QStringLiteral(".log")) ||
+        !source.isFile() || source.isSymLink()) {
+        error_ = tr("The selected log file is not available.");
+        emit errorChanged();
+        return false;
+    }
+    return saveFile(source.absoluteFilePath(), destination);
+}
+
 bool LogModel::save(const QUrl& destination) {
     drain();
+    return saveFile(log_file_, destination);
+}
+
+bool LogModel::saveFile(const QString& sourcePath, const QUrl& destination) {
     error_.clear();
     if ((!destination.isLocalFile() && !platform::isContentUri(destination)) || destination.isEmpty()) {
         error_ = tr("The selected log destination is not supported.");
+    } else if (destination.isLocalFile() && !sourcePath.isEmpty() &&
+               platform::normalizeLocalPath(destination.toLocalFile()) == platform::normalizeLocalPath(sourcePath)) {
+        error_ = tr("Choose a different file from the source log.");
     } else if (destination.isLocalFile() && !log_file_.isEmpty() &&
                platform::normalizeLocalPath(destination.toLocalFile()) == platform::normalizeLocalPath(log_file_)) {
         error_ = tr("Choose a different file from the active log file.");
     } else {
         loguru::flush();
-        QFile source(log_file_);
-        const QString writeError = io::DocumentIo::writeStream(destination, [this, &source](QIODevice& file) {
-            if (!log_file_.isEmpty() && !source.open(QIODevice::ReadOnly)) return source.errorString();
+        QFile source(sourcePath);
+        const QString writeError = io::DocumentIo::writeStream(destination, [this, &source, &sourcePath](QIODevice& file) {
+            if (!sourcePath.isEmpty() && !source.open(QIODevice::ReadOnly)) return source.errorString();
             if (!source.isOpen()) {
                 const QByteArray bytes = (snapshot(true) + QLatin1Char('\n')).toUtf8();
                 return file.write(bytes) == bytes.size() ? QString() : file.errorString();

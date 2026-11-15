@@ -30,7 +30,7 @@ class RawChunkCache {
     bool isDirty() const { return !cache_.empty(); }
 
     void putChunk(const bl::chunk_pos& pos, const bl::raw_chunk& chunk);
-    void putEntities(const bl::chunk_pos& pos, EntityData entities, const std::set<std::string>& removed);
+    void putEntities(const bl::chunk_pos& pos, EntityData entities, std::set<std::string> removed);
     void clearChunkEntities(const bl::chunk_pos& pos, bl::raw_chunk chunk);
 
     bl::chunk* getChunk(const bl::chunk_pos& pos, bl::chunk_load_policy policy = bl::chunk_load_policy::All) const;

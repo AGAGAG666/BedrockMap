@@ -5,6 +5,7 @@
 #include <QMutex>
 #include <QTimer>
 #include <QUrl>
+#include <QVariantList>
 #include <QtLogging>
 
 #include "loguru/loguru.hpp"
@@ -44,6 +45,8 @@ class LogModel final : public QAbstractListModel {
     Q_INVOKABLE void copyAll();
     Q_INVOKABLE void copyText(const QString& text);
     Q_INVOKABLE bool save(const QUrl& destination);
+    Q_INVOKABLE QVariantList historicalFiles() const;
+    Q_INVOKABLE bool saveHistorical(const QString& fileName, const QUrl& destination);
 
    signals:
     void filterChanged();
@@ -67,6 +70,7 @@ class LogModel final : public QAbstractListModel {
     QString displayText(const Entry& entry) const;
     QString entryHtml(const Entry& entry) const;
     QString snapshot(bool complete = false) const;
+    bool saveFile(const QString& sourcePath, const QUrl& destination);
     QMutex pending_mutex_;
     QList<Entry> pending_;
     qulonglong pending_omitted_{0};

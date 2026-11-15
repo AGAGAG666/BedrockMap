@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <exception>
+#include <set>
 
 #include "base/appcontext.h"
 #include "base/binaryclipboard.h"
@@ -391,7 +392,10 @@ bool MapController::deleteSelectionEntitiesAsync() {
 bool MapController::deleteRegionEntitiesAsync(std::vector<WorldEntityTarget> targets, const bl::chunk_pos& region) {
     if (targets.empty() || region_import_.active() || region_import_.loading()) return false;
     QRegion affected(QRect(region.x, region.z, 1, 1));
-    for (const auto& target : targets) affected += QRect(target.sourceChunk.x, target.sourceChunk.z, 1, 1);
+    std::set<bl::chunk_pos> sources;
+    for (const auto& target : targets) {
+        if (sources.insert(target.sourceChunk).second) affected += QRect(target.sourceChunk.x, target.sourceChunk.z, 1, 1);
+    }
     return startRegionOperation([targets = std::move(targets), region](AsyncLevelLoader& loader, const QRegion&, int) {
         const auto result = loader.deleteRegionEntities(targets, region);
         if (result.success()) return SelectionOperationResult::refreshSelection(true);

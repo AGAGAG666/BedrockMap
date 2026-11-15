@@ -1,6 +1,7 @@
 #include "loader/chunkstorage.h"
 #include "loader/chunkcoordsservice.h"
 #include <set>
+#include <algorithm>
 
 #include <leveldb/write_batch.h>
 
@@ -74,27 +75,84 @@ WorldEntityDeleteResult ChunkStorage::deleteRegionEntities(const std::vector<Wor
         uint64_t missingReferences;
     };
     const std::lock_guard lock(mutex_);
-    std::map<bl::chunk_pos, std::set<int64_t>> byChunk;
+    LOG_F(INFO, "Entity deletion started: targets=%llu", static_cast<unsigned long long>(targets.size()));
+    std::map<bl::chunk_pos, std::vector<int64_t>> byChunk;
     for (const auto& target : targets) {
         if (target.sourceChunk.dim != region.dim) return {Error::DimensionMismatch, target.sourceChunk, {}};
-        byChunk[target.sourceChunk].insert(target.uid);
+        byChunk[target.sourceChunk].push_back(target.uid);
     }
     std::vector<Plan> plans;
     const double left = region.x * 16.0, top = region.z * 16.0;
-    for (const auto& [pos, ids] : byChunk) {
-        auto raw = [&]() -> std::optional<bl::raw_chunk> {
-            if (cache_.hasChunk(pos)) return cache_.getRawChunk(pos);
-            bl::raw_chunk stored(pos);
-            if (!stored.read(level_)) return std::nullopt;
-            return stored;
-        }();
+    for (auto& [pos, ids] : byChunk) {
+        std::sort(ids.begin(), ids.end());
+        ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+        LOG_F(INFO, "Entity deletion source: chunk=%s targets=%llu", pos.to_string().c_str(),
+              static_cast<unsigned long long>(ids.size()));
+        std::vector<uint8_t> found(ids.size(), 0);
+        size_t foundCount = 0;
+        std::vector<std::unique_ptr<bl::actor>> retainedActors;
+        WorldEntityDeleteResult failure;
+        const auto filter = [&](std::string_view bytes, std::string* retainedBytes) {
+            size_t offset = 0;
+            while (offset < bytes.size()) {
+                const auto input = bytes.substr(offset);
+                auto parsed = bl::nbt::parse_one(std::span<const byte_t>(input.data(), input.size()));
+                std::unique_ptr<bl::nbt::compound_tag> root(parsed.root);
+                if (!parsed || parsed.consumed_length == 0 || parsed.consumed_length > input.size()) {
+                    failure = {Error::InvalidNbt, pos, bl::nbt::parse_error_to_string(parsed.error_code)};
+                    return false;
+                }
+                auto actor = std::make_unique<bl::actor>();
+                if (!actor->load_from_nbt_owned(root.get())) {
+                    failure = {Error::InvalidActor, pos, {}};
+                    return false;
+                }
+                root.release();
+                const auto target = std::lower_bound(ids.begin(), ids.end(), actor->uid());
+                if (target == ids.end() || *target != actor->uid()) {
+                    if (retainedBytes) retainedBytes->append(input.data(), parsed.consumed_length);
+                    else retainedActors.push_back(std::move(actor));
+                } else {
+                    const auto position = actor->pos();
+                    if (!(position.x >= left && position.x < left + 16 && position.z >= top && position.z < top + 16)) {
+                        failure = {Error::TargetMoved, pos, {}};
+                        return false;
+                    }
+                    const auto index = static_cast<size_t>(target - ids.begin());
+                    if (!found[index]) { found[index] = 1; ++foundCount; }
+                }
+                offset += parsed.consumed_length;
+            }
+            return true;
+        };
         const auto cached = cache_.cache_.find(pos);
         const bool pendingEntities = cached != cache_.cache_.end() && !cached->second.shouldDelete && cached->second.entityData;
+        std::optional<bl::raw_chunk> raw;
+        if (!pendingEntities) {
+            if (cached != cache_.cache_.end()) {
+                if (!cached->second.shouldDelete && cached->second.chunk) raw.emplace(*cached->second.chunk);
+            } else {
+                raw.emplace(pos);
+                if (!raw->read(level_)) raw.reset();
+            }
+        }
+        uint64_t missingReferences = 0;
+        std::set<std::string> removed;
         if (pendingEntities || (!raw && cached == cache_.cache_.end())) {
             RawChunkCache::EntityData entities;
-            uint64_t missingReferences = 0;
-            if (pendingEntities) entities = *cached->second.entityData;
-            else {
+            const auto keepActor = [&](const std::string& key, std::string_view bytes) {
+                std::string remaining;
+                if (!filter(bytes, &remaining)) return false;
+                if (remaining.empty()) removed.insert(key);
+                else entities.actors.emplace(key, std::move(remaining));
+                return true;
+            };
+            if (pendingEntities) {
+                const auto& previous = *cached->second.entityData;
+                if (!filter(previous.legacy, &entities.legacy)) return failure;
+                for (const auto& [key, bytes] : previous.actors)
+                    if (!keepActor(key, bytes)) return failure;
+            } else {
                 const auto options = level_.bulk_read_options();
                 for (const auto type : bl::raw_chunk::MARKER_KEYS) {
                     std::string value;
@@ -106,137 +164,66 @@ WorldEntityDeleteResult ChunkStorage::deleteRegionEntities(const std::vector<Wor
                     if (status.ok() || status.IsNotFound()) return {};
                     return {Error::DatabaseRead, pos, status.ToString()};
                 };
-                auto status = read(bl::chunk_key{bl::chunk_key::Entity, pos}.to_raw(), entities.legacy);
+                std::string legacy;
+                auto status = read(bl::chunk_key{bl::chunk_key::Entity, pos}.to_raw(), legacy);
                 if (!status.success()) return status;
-                std::string digestBytes;
-                status = read(bl::actor_digest_key{pos}.to_raw(), digestBytes);
+                if (!filter(legacy, &entities.legacy)) return failure;
+                std::string digest;
+                status = read(bl::actor_digest_key{pos}.to_raw(), digest);
                 if (!status.success()) return status;
-                bl::actor_digest_list digest;
-                if (!digest.load(digestBytes)) return {Error::InvalidDigest, pos, {}};
-                for (const auto& key : digest.actor_digests_) {
+                if (digest.size() % 8 != 0) return {Error::InvalidDigest, pos, {}};
+                for (size_t offset = 0; offset < digest.size(); offset += 8) {
+                    const auto key = digest.substr(offset, 8);
                     std::string bytes;
                     status = read(std::string(bl::storage_key::actor) + key, bytes);
                     if (!status.success()) return status;
                     if (bytes.empty()) { ++missingReferences; continue; }
-                    entities.actors.emplace(key, std::move(bytes));
+                    if (!keepActor(key, bytes)) return failure;
                 }
             }
-            WorldEntityDeleteResult failure;
-            std::set<int64_t> found;
-            const auto filter = [&](std::string& bytes) {
-                if (bytes.empty()) return true;
-                auto parsed = bl::nbt::parse_all(std::span<const byte_t>(bytes.data(), bytes.size()));
-                if (!parsed) {
-                    failure = {Error::InvalidNbt, pos, bl::nbt::parse_error_to_string(parsed.error_code)};
-                    return false;
-                }
-                std::vector<std::unique_ptr<bl::nbt::compound_tag>> roots;
-                for (auto* root : parsed.roots) roots.emplace_back(root);
-                std::string remaining;
-                bool changed = false;
-                for (auto& root : roots) {
-                    bl::actor actor;
-                    if (!actor.load_from_nbt_owned(root.get())) {
-                        failure = {Error::InvalidActor, pos, {}};
-                        return false;
-                    }
-                    root.release();
-                    if (!ids.contains(actor.uid())) {
-                        remaining += actor.root()->serialize();
-                        continue;
-                    }
-                    const auto position = actor.pos();
-                    if (!(position.x >= left && position.x < left + 16 && position.z >= top && position.z < top + 16)) {
-                        failure = {Error::TargetMoved, pos, {}};
-                        return false;
-                    }
-                    found.insert(actor.uid());
-                    changed = true;
-                }
-                if (changed) bytes = std::move(remaining);
-                return true;
-            };
-            if (!filter(entities.legacy)) return failure;
-            std::set<std::string> removed;
-            for (auto it = entities.actors.begin(); it != entities.actors.end();) {
-                if (!filter(it->second)) return failure;
-                if (it->second.empty()) {
-                    removed.insert(it->first);
-                    it = entities.actors.erase(it);
-                } else ++it;
-            }
-            if (found != ids) return {Error::TargetMissing, pos, {}};
+            if (foundCount != ids.size()) return {Error::TargetMissing, pos, {}};
             plans.push_back({pos, std::nullopt, std::move(entities), std::move(removed), missingReferences});
-            continue;
-        }
-        if (!raw) return {Error::SourceChunkUnavailable, pos, {}};
-        std::vector<std::unique_ptr<bl::actor>> actors;
-        WorldEntityDeleteResult failure;
-        const auto append = [&](std::string_view bytes) {
-            if (bytes.empty()) return true;
-            auto parsed = bl::nbt::parse_all(std::span<const byte_t>(bytes.data(), bytes.size()));
-            if (!parsed) {
-                failure = {Error::InvalidNbt, pos, bl::nbt::parse_error_to_string(parsed.error_code)};
-                return false;
+        } else {
+            if (!raw) return {Error::SourceChunkUnavailable, pos, {}};
+            if (!filter(raw->get_normal_key(bl::chunk_key::Entity), nullptr)) return failure;
+            const auto& digest = raw->get_actor_digest();
+            if (digest.size() % 8 != 0) return {Error::InvalidDigest, pos, {}};
+            for (size_t offset = 0; offset < digest.size(); offset += 8) {
+                const auto key = digest.substr(offset, 8);
+                if (raw->get_entities().contains(key)) continue;
+                std::string value;
+                const auto status = level_.db()->Get(level_.bulk_read_options(), std::string(bl::storage_key::actor) + key, &value);
+                if (status.IsNotFound() || (status.ok() && value.empty())) { ++missingReferences; continue; }
+                if (!status.ok()) return {Error::DatabaseRead, pos, status.ToString()};
+                return {Error::TargetMissing, pos, {}};
             }
-            std::vector<std::unique_ptr<bl::nbt::compound_tag>> roots;
-            for (auto* root : parsed.roots) roots.emplace_back(root);
-            for (auto& root : roots) {
-                auto actor = std::make_unique<bl::actor>();
-                if (!actor->load_from_nbt_owned(root.get())) {
-                    failure = {Error::InvalidActor, pos, {}};
-                    return false;
-                }
-                root.release();
-                actors.push_back(std::move(actor));
+            for (const auto& [key, bytes] : raw->get_entities()) {
+                removed.insert(key);
+                if (!filter(bytes, nullptr)) return failure;
             }
-            return true;
-        };
-        if (!append(raw->get_normal_key(bl::chunk_key::Entity))) return failure;
-        bl::actor_digest_list digest;
-        if (!digest.load(raw->get_actor_digest())) return {Error::InvalidDigest, pos, {}};
-        uint64_t missingReferences = 0;
-        for (const auto& key : digest.actor_digests_) {
-            if (raw->get_entities().contains(key)) continue;
-            std::string value;
-            const auto status = level_.db()->Get(level_.bulk_read_options(), std::string(bl::storage_key::actor) + key, &value);
-            if (status.IsNotFound() || (status.ok() && value.empty())) { ++missingReferences; continue; }
-            if (!status.ok()) return {Error::DatabaseRead, pos, status.ToString()};
-            return {Error::TargetMissing, pos, {}};
+            if (foundCount != ids.size()) return {Error::TargetMissing, pos, {}};
+            std::vector<bl::actor*> remaining;
+            remaining.reserve(retainedActors.size());
+            for (const auto& actor : retainedActors) remaining.push_back(actor.get());
+            raw->set_entities(remaining);
+            for (const auto& [key, bytes] : raw->get_entities()) removed.erase(key);
+            plans.push_back({pos, std::move(*raw), std::nullopt, std::move(removed), missingReferences});
         }
-        std::set<std::string> previousKeys;
-        for (const auto& [key, bytes] : raw->get_entities()) {
-            previousKeys.insert(key);
-            if (!append(bytes)) return failure;
-        }
-        std::set<int64_t> found;
-        std::vector<bl::actor*> remaining;
-        for (const auto& actor : actors) {
-            if (!ids.contains(actor->uid())) { remaining.push_back(actor.get()); continue; }
-            const auto position = actor->pos();
-            if (!(position.x >= left && position.x < left + 16 && position.z >= top && position.z < top + 16))
-                return {Error::TargetMoved, pos, {}};
-            found.insert(actor->uid());
-        }
-        if (found != ids) return {Error::TargetMissing, pos, {}};
-        raw->set_entities(remaining);
-        std::set<std::string> removed;
-        for (const auto& key : previousKeys) if (!raw->get_entities().contains(key)) removed.insert(key);
-        plans.push_back({pos, std::move(*raw), std::nullopt, std::move(removed), missingReferences});
     }
     for (auto& plan : plans) {
         const auto pos = plan.source;
-        if (plan.entities) cache_.putEntities(pos, std::move(*plan.entities), plan.removed);
+        if (plan.entities) cache_.putEntities(pos, std::move(*plan.entities), std::move(plan.removed));
         else {
             cache_.putChunk(pos, *plan.chunk);
             if (!plan.chunk->get_normal_key(bl::chunk_key::Entity).empty()) added_legacy_entity_chunks_.insert(pos);
-            auto& removed = cache_.cache_.at(pos).removedActorUids;
-            removed.insert(plan.removed.begin(), plan.removed.end());
+            cache_.cache_.at(pos).removedActorUids.merge(plan.removed);
         }
         if (plan.missingReferences > 0)
             LOG_F(INFO, "Entity deletion removed %llu stale digest references in chunk %s",
                   static_cast<unsigned long long>(plan.missingReferences), pos.to_string().c_str());
     }
+    LOG_F(INFO, "Entity deletion completed: targets=%llu sources=%llu", static_cast<unsigned long long>(targets.size()),
+          static_cast<unsigned long long>(plans.size()));
     return {};
 }
 

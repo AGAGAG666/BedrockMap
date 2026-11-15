@@ -42,10 +42,10 @@ void RawChunkCache::putChunk(const bl::chunk_pos& pos, const bl::raw_chunk& chun
     cache_.at(pos).removedActorUids = std::move(removed);
 }
 
-void RawChunkCache::putEntities(const bl::chunk_pos& pos, EntityData entities, const std::set<std::string>& removed) {
+void RawChunkCache::putEntities(const bl::chunk_pos& pos, EntityData entities, std::set<std::string> removed) {
     auto& entry = cache_[pos];
     entry.entityData = std::move(entities);
-    entry.removedActorUids.insert(removed.begin(), removed.end());
+    entry.removedActorUids.merge(removed);
 }
 
 void RawChunkCache::clearChunkEntities(const bl::chunk_pos& pos, bl::raw_chunk chunk) {
