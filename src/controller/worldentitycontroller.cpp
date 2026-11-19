@@ -62,11 +62,20 @@ QHash<int, QByteArray> WorldEntityController::roleNames() const {
 }
 
 QVariantList WorldEntityController::entitiesForRegion(int row) const {
+    if (row < 0 || row >= rowCount()) return {};
+    return entitiesForRegionPage(row, 0, static_cast<int>(regions_[row].entities.size()));
+}
+
+QVariantList WorldEntityController::entitiesForRegionPage(int row, int offset, int limit) const {
     QVariantList entities;
-    if (row < 0 || row >= rowCount()) return entities;
+    if (row < 0 || row >= rowCount() || offset < 0 || limit <= 0) return entities;
     const auto& records = regions_[row].entities;
-    entities.reserve(static_cast<qsizetype>(records.size()));
-    for (const auto& entity : records) {
+    const auto start = static_cast<size_t>(offset);
+    if (start >= records.size()) return entities;
+    const auto end = start + std::min(records.size() - start, static_cast<size_t>(limit));
+    entities.reserve(static_cast<qsizetype>(end - start));
+    for (auto i = start; i < end; ++i) {
+        const auto& entity = records[i];
         const auto id = QString::fromStdString(entity.identifier);
         entities.append(QVariantMap{{QStringLiteral("identifier"), id},
             {QStringLiteral("label"), resources_ ? resources_->actorLabel(id, QString::fromStdString(entity.customName)) : id},
@@ -74,6 +83,15 @@ QVariantList WorldEntityController::entitiesForRegion(int row) const {
             {QStringLiteral("x"), entity.x}, {QStringLiteral("y"), entity.y}, {QStringLiteral("z"), entity.z}});
     }
     return entities;
+}
+
+std::optional<int> WorldEntityController::findRegion(const bl::chunk_pos& pos) const {
+    const auto dimension = map_index_.find(pos.dim);
+    if (dimension == map_index_.end()) return std::nullopt;
+    const auto x = dimension->second.find(pos.x);
+    if (x == dimension->second.end()) return std::nullopt;
+    const auto z = x->second.find(pos.z);
+    return z == x->second.end() ? std::nullopt : std::optional<int>(static_cast<int>(z->second));
 }
 
 std::optional<bl::chunk_pos> WorldEntityController::regionPosition(int row) const {

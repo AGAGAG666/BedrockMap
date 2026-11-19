@@ -284,15 +284,28 @@ QVariantList LogModel::historicalFiles() const {
     return files;
 }
 
-bool LogModel::saveHistorical(const QString& fileName, const QUrl& destination) {
+QString LogModel::historicalPath(const QString& fileName) const {
+    if (fileName.isEmpty() || QFileInfo(fileName).fileName() != fileName || !fileName.endsWith(QStringLiteral(".log"))) return {};
     const QFileInfo source(QDir(app_paths::logDirectory()).filePath(fileName));
-    if (fileName.isEmpty() || QFileInfo(fileName).fileName() != fileName || !fileName.endsWith(QStringLiteral(".log")) ||
-        !source.isFile() || source.isSymLink()) {
-        error_ = tr("The selected log file is not available.");
-        emit errorChanged();
-        return false;
-    }
-    return saveFile(source.absoluteFilePath(), destination);
+    return source.isFile() && !source.isSymLink() ? source.absoluteFilePath() : QString{};
+}
+
+bool LogModel::saveHistorical(const QString& fileName, const QUrl& destination) {
+    const auto path = historicalPath(fileName);
+    if (!path.isEmpty()) return saveFile(path, destination);
+    error_ = tr("The selected log file is not available.");
+    emit errorChanged();
+    return false;
+}
+
+bool LogModel::saveForMcp(const QString& historyName, const QUrl& destination) {
+    drain();
+    if (historyName.isEmpty()) return saveFile(log_file_, destination, true);
+    const auto path = historicalPath(historyName);
+    if (!path.isEmpty()) return saveFile(path, destination, true);
+    error_ = tr("The selected log file is not available.");
+    emit errorChanged();
+    return false;
 }
 
 bool LogModel::save(const QUrl& destination) {
@@ -300,7 +313,7 @@ bool LogModel::save(const QUrl& destination) {
     return saveFile(log_file_, destination);
 }
 
-bool LogModel::saveFile(const QString& sourcePath, const QUrl& destination) {
+bool LogModel::saveFile(const QString& sourcePath, const QUrl& destination, bool redact) {
     error_.clear();
     if ((!destination.isLocalFile() && !platform::isContentUri(destination)) || destination.isEmpty()) {
         error_ = tr("The selected log destination is not supported.");
@@ -313,19 +326,23 @@ bool LogModel::saveFile(const QString& sourcePath, const QUrl& destination) {
     } else {
         loguru::flush();
         QFile source(sourcePath);
-        const QString writeError = io::DocumentIo::writeStream(destination, [this, &source, &sourcePath](QIODevice& file) {
+        const QString writeError = io::DocumentIo::writeStream(destination, [this, &source, &sourcePath, redact](QIODevice& file) {
             if (!sourcePath.isEmpty() && !source.open(QIODevice::ReadOnly)) return source.errorString();
             if (!source.isOpen()) {
-                const QByteArray bytes = (snapshot(true) + QLatin1Char('\n')).toUtf8();
+                QStringList lines = snapshot(true).split(QLatin1Char('\n'));
+                if (redact) for (auto& line : lines)
+                    if (line.contains(QStringLiteral("leveldb_xor_key"), Qt::CaseInsensitive)) line = QStringLiteral("[redacted]");
+                const QByteArray bytes = (lines.join(QLatin1Char('\n')) + QLatin1Char('\n')).toUtf8();
                 return file.write(bytes) == bytes.size() ? QString() : file.errorString();
             }
             // Freeze the byte count so concurrent logging cannot extend export
             // indefinitely. The full file includes entries evicted from the UI.
             qint64 remaining = source.size();
             while (remaining > 0) {
-                const QByteArray bytes = source.read(std::min<qint64>(remaining, 256 * 1024));
+                const QByteArray bytes = redact ? source.readLine(remaining + 1) : source.read(std::min<qint64>(remaining, 256 * 1024));
                 if (bytes.isEmpty()) return source.errorString();
-                if (file.write(bytes) != bytes.size()) return file.errorString();
+                const QByteArray output = redact && bytes.toLower().contains("leveldb_xor_key") ? QByteArray("[redacted]\n") : bytes;
+                if (file.write(output) != output.size()) return file.errorString();
                 remaining -= bytes.size();
             }
             return QString();

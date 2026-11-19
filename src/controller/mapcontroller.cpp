@@ -85,6 +85,13 @@ int MapController::dimension() const { return mapViewState() ? mapViewState()->d
 
 int MapController::layer() const { return mapViewState() ? static_cast<int>(mapViewState()->options().layer) : 0; }
 
+QVariantList MapController::overlays() const {
+    QVariantList values;
+    const auto* state = mapViewState();
+    if (state) for (const bool enabled : state->options().others) values.append(enabled);
+    return values;
+}
+
 bool MapController::transparentVoid() const { return loader_ && loader_->transparentVoid(); }
 
 void MapController::setTransparentVoid(bool enabled) {
@@ -152,11 +159,16 @@ bool MapController::selectionContainsChunkAt(const QPointF& view_position) const
 }
 
 QVariantMap MapController::blockInfoAt(const QPointF& view_position) const {
-    QVariantMap result;
     const auto* map_state = mapViewState();
-    if (!map_state) return result;
+    if (!map_state) return {};
     const QPoint block = map_state->blockPosAt(view_position, map_state->viewportSize());
-    const int dimension = map_state->dim();
+    return blockInfo(block.x(), block.y());
+}
+
+QVariantMap MapController::blockInfo(int x, int z) const {
+    QVariantMap result;
+    const QPoint block(x, z);
+    const int dimension = this->dimension();
     const auto chunk_x = static_cast<int>(std::floor(block.x() / 16.0));
     const auto chunk_z = static_cast<int>(std::floor(block.y() / 16.0));
     result.insert(QStringLiteral("blockX"), block.x());
@@ -329,15 +341,19 @@ void MapController::setLayer(int layer) {
 }
 
 void MapController::setOther(int other, bool enabled) {
-    if (auto* map_state = mapViewState()) map_state->setOther(static_cast<MapRenderOptions::OtherType>(other), enabled);
+    auto* state = mapViewState();
+    if (!state || other < 0 || other >= MapRenderOptions::OtherLen) return;
+    const auto type = static_cast<MapRenderOptions::OtherType>(other);
+    if (state->options().getOther(type) == enabled) return;
+    state->setOther(type, enabled);
+    emit overlaysChanged();
 }
 
 bool MapController::toggleOther(int other) {
-    auto* map_state = mapViewState();
-    if (!map_state) return false;
-    const auto type = static_cast<MapRenderOptions::OtherType>(other);
-    const bool enabled = !map_state->options().getOther(type);
-    map_state->setOther(type, enabled);
+    const auto* state = mapViewState();
+    if (!state || other < 0 || other >= MapRenderOptions::OtherLen) return false;
+    const bool enabled = !state->options().getOther(static_cast<MapRenderOptions::OtherType>(other));
+    setOther(other, enabled);
     return enabled;
 }
 
@@ -346,6 +362,10 @@ void MapController::setSelectionMode(int mode) {
         map_state->setSelectionMode(static_cast<ChunkSelection::Mode>(mode));
         emit selectionModeChanged();
     }
+}
+
+void MapController::replaceSelection(const QRegion& region) {
+    if (auto* state = mapViewState()) state->setSelectionRegion(region);
 }
 
 void MapController::clearSelection() {

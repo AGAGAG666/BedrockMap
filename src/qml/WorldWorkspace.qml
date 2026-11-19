@@ -201,11 +201,22 @@ Item {
             section = session ? session.workspaceSection : 0
             restoringSection = false
         }
+        function onWorkspaceRouteChanged() {
+            if (!session || childPages.currentRoute === session.workspaceRoute)
+                return
+            if (session.workspaceRoute === "root")
+                childPages.reset("root")
+            else
+                childPages.open(session.workspaceRoute)
+        }
     }
 
-    function setMapToggle(toggle, enabled) {
-        if (toggle && toggle.checked !== enabled)
-            toggle.checked = enabled
+    function overlayVisible(index) {
+        return mapController ? !!mapController.overlays[index] : index === 0
+    }
+    function setMapOverlay(index, enabled) {
+        if (mapController)
+            mapController.setOther(index, enabled)
     }
     function setMapDimension(index) {
         if (mapController)
@@ -230,37 +241,37 @@ Item {
             mapController.setSelectionMode(index)
     }
     function setGridEnabled(enabled) {
-        setMapToggle(gridToggle, enabled)
+        setMapOverlay(0, enabled)
     }
     function toggleGrid() {
         setGridEnabled(!gridToggle.checked)
     }
     function setCoordinatesEnabled(enabled) {
-        setMapToggle(coordsToggle, enabled)
+        setMapOverlay(1, enabled)
     }
     function toggleCoordinates() {
         setCoordinatesEnabled(!coordsToggle.checked)
     }
     function setSlimeChunksEnabled(enabled) {
-        setMapToggle(slimeToggle, enabled)
+        setMapOverlay(2, enabled)
     }
     function toggleSlimeChunks() {
         setSlimeChunksEnabled(!slimeToggle.checked)
     }
     function setEntitiesEnabled(enabled) {
-        setMapToggle(entitiesToggle, enabled)
+        setMapOverlay(3, enabled)
     }
     function toggleEntities() {
         setEntitiesEnabled(!entitiesToggle.checked)
     }
     function setVillagesEnabled(enabled) {
-        setMapToggle(villagesToggle, enabled)
+        setMapOverlay(4, enabled)
     }
     function toggleVillages() {
         setVillagesEnabled(!villagesToggle.checked)
     }
     function setHsaEnabled(enabled) {
-        setMapToggle(hsaToggle, enabled)
+        setMapOverlay(5, enabled)
     }
     function toggleHsa() {
         setHsaEnabled(!hsaToggle.checked)
@@ -555,13 +566,13 @@ Item {
                             AppToggle {
                                 id: gridToggle
                                 text: qsTr("Grid")
-                                checked: true
+                                checked: workspace.overlayVisible(0)
                                 onToggled: workspace.setGridEnabled(checked)
                             }
                             AppToggle {
                                 id: coordsToggle
                                 text: qsTr("Coords")
-                                checked: false
+                                checked: workspace.overlayVisible(1)
                                 onToggled: workspace.setCoordinatesEnabled(checked)
                             }
                             AppToggle {
@@ -632,23 +643,25 @@ Item {
                             AppToggle {
                                 id: slimeToggle
                                 text: qsTr("Slime")
-                                checked: false
+                                checked: workspace.overlayVisible(2)
                                 onToggled: workspace.setSlimeChunksEnabled(checked)
                             }
                             AppToggle {
                                 id: entitiesToggle
                                 text: qsTr("Entities")
-                                checked: false
+                                checked: workspace.overlayVisible(3)
                                 onToggled: workspace.setEntitiesEnabled(checked)
                             }
                             AppToggle {
                                 id: villagesToggle
                                 text: qsTr("Villages")
+                                checked: workspace.overlayVisible(4)
                                 onToggled: workspace.setVillagesEnabled(checked)
                             }
                             AppToggle {
                                 id: hsaToggle
                                 text: qsTr("HSA")
+                                checked: workspace.overlayVisible(5)
                                 onToggled: workspace.setHsaEnabled(checked)
                             }
                         }

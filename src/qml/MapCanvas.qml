@@ -137,6 +137,17 @@ Item {
     }
 
     Connections {
+        target: App
+        function onMapCaptureRequested(id, map) {
+            if (canvas.visible && canvas.controller === map)
+                canvas.grabToImage(function (result) {
+                    if (result)
+                        App.completeMapCapture(id, result.image)
+                })
+        }
+    }
+
+    Connections {
         target: canvas.controller
         function onOperationFinished() {
             canvas.operationText = ""

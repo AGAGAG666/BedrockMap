@@ -1,5 +1,8 @@
 #include "controller/appcontroller.h"
 
+#include <QTimer>
+#include <utility>
+
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -79,13 +82,14 @@ AppController::AppController(std::unique_ptr<LogModel> logs, AppContext& context
       worlds_(this),
       notifications_(this),
       update_checker_(this),
-      sessions_(context, this) {
+      sessions_(context, this), mcp_(*this) {
     if (applicationController) qFatal("Only one AppController can exist");
     if (!logs_) qFatal("AppController requires an initialized log model");
     applicationController = this;
     connect(&addon_watcher_, &QFutureWatcher<std::shared_ptr<AddonResources>>::finished, this, [this] {
         const auto catalog = addon_watcher_.result();
         importing_addon_ = false;
+        emit addonImportFinished(catalog ? catalog->error : tr("Could not load addon resources."));
         if (!catalog || !catalog->error.isEmpty()) {
             notifications_.error(catalog ? catalog->error : tr("Could not load addon resources."));
         } else {
@@ -149,6 +153,7 @@ AppController::AppController(std::unique_ptr<LogModel> logs, AppContext& context
             [this](const QString& message, const QString& detail) { notifications_.error(message, {}, detail); });
 }
 AppController::~AppController() {
+    mcp_.stop();
     // File workers own only value captures and must finish before shutdown.
     addon_watcher_.waitForFinished();
     import_watcher_.waitForFinished();
@@ -340,6 +345,25 @@ void AppController::openWorld(const QString& path, const QString& title) {
 
 void AppController::copyWorldToInternal(const QUrl& url) { importWorldToInternal(url, false); }
 
+bool AppController::captureMap(const QString& id, QObject* map, const QUrl& destination) {
+    if (!map_capture_id_.isEmpty()) return false;
+    map_capture_id_ = id;
+    map_capture_destination_ = destination;
+    QTimer::singleShot(10000, this, [this, id] {
+        if (map_capture_id_ == id) completeMapCapture(id, {});
+    });
+    emit mapCaptureRequested(id, map);
+    return true;
+}
+
+void AppController::completeMapCapture(const QString& id, const QImage& image) {
+    if (map_capture_id_ != id) return;
+    map_capture_id_.clear();
+    const auto destination = std::exchange(map_capture_destination_, QUrl{});
+    const bool saved = !image.isNull() && saveImage(destination, image);
+    emit mapCaptureFinished(id, saved ? QString{} : tr("Save failed"));
+}
+
 bool AppController::saveImage(const QUrl& destination, const QImage& image) {
     if (destination.isEmpty() || image.isNull()) return false;
     const QString error = io::DocumentIo::writeStream(destination, [&image](QIODevice& device) {
@@ -401,6 +425,7 @@ void AppController::deleteWorld(const QString& path) {
         const QString error = delete_watcher_.result();
         deleting_world_ = false;
         emit deletingWorldChanged();
+        emit worldFileOperationFinished(error);
         // Refresh also prunes deleted directories from recent-world history.
         // Refresh on failure too, because a partial deletion may invalidate it.
         worlds_.refresh();
@@ -488,6 +513,7 @@ void AppController::startWorldExport(const QString& source, const QUrl& target, 
         }
         exporting_world_ = false;
         emit exportingWorldChanged();
+        emit worldFileOperationFinished(error);
         if (error.isEmpty()) {
             notifications_.info(tr("Export successful"));
             if (open_after_export) {
@@ -560,6 +586,7 @@ void AppController::importWorldToInternal(const QUrl& url, bool archive) {
         }
         importing_world_ = false;
         emit importingWorldChanged();
+        emit worldFileOperationFinished(error);
         if (!error.isEmpty()) {
             notifications_.error(tr("Import failed"), import_name, error);
             return;

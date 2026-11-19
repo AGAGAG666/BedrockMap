@@ -43,6 +43,7 @@ class NbtTreeModel : public QAbstractListModel {
 
     [[nodiscard]] int rowCount(const QModelIndex& parent = {}) const override;
     [[nodiscard]] int count() const { return rowCount(); }
+    [[nodiscard]] const QString& mcpRevision() const { return mcp_revision_; }
     [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
     [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
 
@@ -105,6 +106,7 @@ class NbtTreeModel : public QAbstractListModel {
     bool hex_mode_{false};
     bool editable_{true};
     QString last_error_;
+    QString mcp_revision_;
     bool rebuilding_{false};
     QString search_text_;
 };

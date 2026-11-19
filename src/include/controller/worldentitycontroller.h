@@ -40,6 +40,7 @@ class WorldEntityController final : public QAbstractListModel {
     bool loading() const { return loading_; }
     bool loaded() const { return loaded_; }
     bool stale() const { return stale_; }
+    bool scanCancelled() const { return stop_.load(); }
     QString error() const { return error_; }
     qulonglong scannedKeys() const { return progress_.keys; }
     QString progressText() const;
@@ -59,6 +60,8 @@ class WorldEntityController final : public QAbstractListModel {
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void cancel();
     Q_INVOKABLE QVariantList entitiesForRegion(int row) const;
+    QVariantList entitiesForRegionPage(int row, int offset, int limit) const;
+    std::optional<int> findRegion(const bl::chunk_pos& pos) const;
 
    signals:
     void stateChanged();

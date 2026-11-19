@@ -138,6 +138,7 @@ setting::Settings setting::read() {
     QSettings s(app_paths::configFile(), QSettings::IniFormat);
 
     foreach (const auto& key, s.allKeys()) {
+        if (key.section(QLatin1Char('/'), -1).compare(QStringLiteral("leveldb_xor_key"), Qt::CaseInsensitive) == 0) continue;
         LOG_F(INFO, "Config key: %s, value: %s", key.toStdString().c_str(), s.value(key).toString().toStdString().c_str());
     }
 

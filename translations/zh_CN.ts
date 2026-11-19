@@ -3251,6 +3251,11 @@ Source chunk: X %1, Z %2, dimension %3
         <source>Open config.ini and the application data directory</source>
         <translation>打开 config.ini 和应用数据目录</translation>
     </message>
+    <message>
+        <location filename="../src/qml/ToolsPage.qml"/>
+        <source>MCP server</source>
+        <translation>MCP 服务</translation>
+    </message>
 </context>
 <context>
     <name>UpdateChecker</name>
@@ -4398,6 +4403,39 @@ X %3…%4 · Z %5…%6
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Unable to start deletion. Refresh the entity list and try again.</source>
         <translation>无法开始删除，请刷新实体列表后重试。</translation>
+    </message>
+</context>
+<context>
+    <name>McpPage</name>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Connect an MCP client on this device to BedrockMap using Streamable HTTP.</source>
+        <translation>通过 Streamable HTTP，将同一设备上的 MCP 客户端连接到 BedrockMap。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Enable MCP server</source>
+        <translation>启用 MCP 服务</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Allow MCP writes</source>
+        <translation>允许 MCP 写入</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Write access lets the connected client edit, delete, export and save directly.</source>
+        <translation>开启写权限后，客户端可直接编辑、删除、导出和保存。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Copy endpoint</source>
+        <translation>复制服务地址</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Copy Authorization header</source>
+        <translation>复制 Authorization 请求头</translation>
     </message>
 </context>
 </TS>

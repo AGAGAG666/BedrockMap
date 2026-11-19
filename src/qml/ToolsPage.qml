@@ -43,6 +43,12 @@ Item {
                 onClicked: pageGroup.push("logs")
             }
             AppListRow {
+                visible: App.mcp.supported
+                label: qsTr("MCP server")
+                iconName: "settings"
+                onClicked: pageGroup.push("mcp")
+            }
+            AppListRow {
                 label: qsTr("Open config folder")
                 detail: qsTr("Open config.ini and the application data directory")
                 iconName: "settings"
@@ -87,6 +93,10 @@ Item {
         id: logsComponent
         LogPage {}
     }
+    Component {
+        id: mcpComponent
+        McpPage {}
+    }
     PageGroup {
         id: pageGroup
         rootRoute: "root"
@@ -104,6 +114,11 @@ Item {
                 route: "shortcuts",
                 title: qsTr("Keyboard shortcuts"),
                 component: shortcutsComponent
+            },
+            {
+                route: "mcp",
+                title: qsTr("MCP server"),
+                component: mcpComponent
             },
             {
                 route: "logs",

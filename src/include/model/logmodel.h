@@ -47,6 +47,7 @@ class LogModel final : public QAbstractListModel {
     Q_INVOKABLE bool save(const QUrl& destination);
     Q_INVOKABLE QVariantList historicalFiles() const;
     Q_INVOKABLE bool saveHistorical(const QString& fileName, const QUrl& destination);
+    bool saveForMcp(const QString& historyName, const QUrl& destination);
 
    signals:
     void filterChanged();
@@ -70,7 +71,8 @@ class LogModel final : public QAbstractListModel {
     QString displayText(const Entry& entry) const;
     QString entryHtml(const Entry& entry) const;
     QString snapshot(bool complete = false) const;
-    bool saveFile(const QString& sourcePath, const QUrl& destination);
+    QString historicalPath(const QString& fileName) const;
+    bool saveFile(const QString& sourcePath, const QUrl& destination, bool redact = false);
     QMutex pending_mutex_;
     QList<Entry> pending_;
     qulonglong pending_omitted_{0};

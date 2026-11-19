@@ -1,6 +1,7 @@
 #include "model/nbttreemodel.h"
 
 #include <QRegularExpression>
+#include <QUuid>
 #include <algorithm>
 #include <cstdint>
 #include <limits>
@@ -54,7 +55,14 @@ namespace {
     }
 }  // namespace
 
-NbtTreeModel::NbtTreeModel(QObject* parent) : QAbstractListModel(parent) {}
+NbtTreeModel::NbtTreeModel(QObject* parent) : QAbstractListModel(parent) {
+    const auto revise = [this] { mcp_revision_ = QUuid::createUuid().toString(QUuid::WithoutBraces); };
+    revise();
+    connect(this, &QAbstractItemModel::modelReset, this, revise);
+    connect(this, &QAbstractItemModel::dataChanged, this, revise);
+    connect(this, &QAbstractItemModel::rowsInserted, this, revise);
+    connect(this, &QAbstractItemModel::rowsRemoved, this, revise);
+}
 NbtTreeModel::~NbtTreeModel() = default;
 
 void NbtTreeModel::setRoot(compound_tag* root) {

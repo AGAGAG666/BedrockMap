@@ -32,6 +32,7 @@ class MapController final : public QObject {
     Q_OBJECT
     Q_PROPERTY(int dimension READ dimension NOTIFY dimensionChanged)
     Q_PROPERTY(int layer READ layer NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList overlays READ overlays NOTIFY overlaysChanged)
     Q_PROPERTY(bool transparentVoid READ transparentVoid WRITE setTransparentVoid NOTIFY transparentVoidChanged)
     Q_PROPERTY(bool hasSelection READ hasSelection NOTIFY selectionChanged)
     Q_PROPERTY(int selectionMode READ selectionMode WRITE setSelectionMode NOTIFY selectionModeChanged)
@@ -51,6 +52,7 @@ class MapController final : public QObject {
     [[nodiscard]] int dimension() const;
     /// MapRenderOptions::LayerType the map is showing (0 = terrain, 1 = biomes).
     [[nodiscard]] int layer() const;
+    [[nodiscard]] QVariantList overlays() const;
     [[nodiscard]] bool transparentVoid() const;
     [[nodiscard]] MapCameraState cameraState() const;
     [[nodiscard]] bool hasSelection() const;
@@ -66,6 +68,7 @@ class MapController final : public QObject {
     [[nodiscard]] bool operationRunning() const { return operation_running_; }
     [[nodiscard]] Q_INVOKABLE bool selectionContainsChunkAt(const QPointF& view_position) const;
     [[nodiscard]] Q_INVOKABLE QVariantMap blockInfoAt(const QPointF& view_position) const;
+    [[nodiscard]] QVariantMap blockInfo(int x, int z) const;
     [[nodiscard]] Q_INVOKABLE QVariantMap voxelViewArea() const;
     [[nodiscard]] bool worldLoaded() const;
     [[nodiscard]] RegionImportController* regionImport() { return &region_import_; }
@@ -92,6 +95,7 @@ class MapController final : public QObject {
     Q_INVOKABLE bool toggleOther(int other);
     Q_INVOKABLE void setSelectionMode(int mode);
     Q_INVOKABLE void clearSelection();
+    void replaceSelection(const QRegion& region);
     Q_INVOKABLE void beginSelectionDragAt(const QPointF& view_position);
     Q_INVOKABLE void updateSelectionDragAt(const QPointF& view_position);
     Q_INVOKABLE void finishSelectionDrag();
@@ -118,6 +122,7 @@ class MapController final : public QObject {
    signals:
     void dimensionChanged();
     void transparentVoidChanged();
+    void overlaysChanged();
     /// High-frequency camera-only notification used by renderers during drag.
     /// It avoids reevaluating every QML property binding on each mouse move.
     void cameraMoved();

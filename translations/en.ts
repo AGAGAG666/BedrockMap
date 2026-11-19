@@ -3251,6 +3251,11 @@ Source chunk: X %1, Z %2, dimension %3
         <source>Open config.ini and the application data directory</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <location filename="../src/qml/ToolsPage.qml"/>
+        <source>MCP server</source>
+        <translation>MCP server</translation>
+    </message>
 </context>
 <context>
     <name>UpdateChecker</name>
@@ -4398,6 +4403,39 @@ Terrain and block entities are kept. Save the world to keep this change.</transl
         <location filename="../src/qml/WorldEntityPage.qml"/>
         <source>Unable to start deletion. Refresh the entity list and try again.</source>
         <translation>Unable to start deletion. Refresh the entity list and try again.</translation>
+    </message>
+</context>
+<context>
+    <name>McpPage</name>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Connect an MCP client on this device to BedrockMap using Streamable HTTP.</source>
+        <translation>Connect an MCP client on this device to BedrockMap using Streamable HTTP.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Enable MCP server</source>
+        <translation>Enable MCP server</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Allow MCP writes</source>
+        <translation>Allow MCP writes</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Write access lets the connected client edit, delete, export and save directly.</source>
+        <translation>Write access lets the connected client edit, delete, export and save directly.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Copy endpoint</source>
+        <translation>Copy endpoint</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Copy Authorization header</source>
+        <translation>Copy Authorization header</translation>
     </message>
 </context>
 </TS>

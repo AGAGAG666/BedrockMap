@@ -121,6 +121,12 @@ struct AppQml {
     static AppController* create(QQmlEngine* engine, QJSEngine*);
 };
 
+struct McpServerQml {
+    Q_GADGET
+    QML_FOREIGN(McpServer)
+    QML_ANONYMOUS
+};
+
 struct SettingsQml {
     Q_GADGET
     QML_FOREIGN(SettingsViewModel)

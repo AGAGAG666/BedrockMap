@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "base/updatechecker.h"
+#include "controller/mcpserver.h"
 #include "controller/runtimesettings.h"
 #include "controller/sessioncontroller.h"
 #include "controller/settingsviewmodel.h"
@@ -29,6 +30,7 @@ class AppController final : public QObject {
     Q_PROPERTY(WorldListModel* worlds READ worlds CONSTANT)
     Q_PROPERTY(NotificationCenter* notifications READ notifications CONSTANT)
     Q_PROPERTY(LogModel* logs READ logs CONSTANT)
+    Q_PROPERTY(McpServer* mcp READ mcp CONSTANT)
     Q_PROPERTY(int currentPage READ currentPage WRITE setCurrentPage NOTIFY currentPageChanged)
     Q_PROPERTY(bool workspaceOpen READ workspaceOpen NOTIFY workspaceOpenChanged)
     Q_PROPERTY(int workspaceIndex READ workspaceIndex NOTIFY workspaceIndexChanged)
@@ -58,6 +60,7 @@ class AppController final : public QObject {
     [[nodiscard]] WorldListModel* worlds() { return &worlds_; }
     [[nodiscard]] NotificationCenter* notifications() { return &notifications_; }
     [[nodiscard]] LogModel* logs() const { return logs_.get(); }
+    [[nodiscard]] McpServer* mcp() { return &mcp_; }
 
     [[nodiscard]] int currentPage() const { return current_page_; }
     [[nodiscard]] bool workspaceOpen() const { return workspace_open_; }
@@ -91,6 +94,8 @@ class AppController final : public QObject {
     /// Copies a world to the app's internal directory and opens it.
     Q_INVOKABLE void copyWorldToInternal(const QUrl& url);
     Q_INVOKABLE bool saveImage(const QUrl& destination, const QImage& image);
+    bool captureMap(const QString& id, QObject* map, const QUrl& destination);
+    Q_INVOKABLE void completeMapCapture(const QString& id, const QImage& image);
     Q_INVOKABLE void openMcworldFile(const QUrl& url);
     /// Called after the frontend confirms permanent deletion of an internal world.
     Q_INVOKABLE void deleteWorld(const QString& path);
@@ -123,6 +128,10 @@ class AppController final : public QObject {
     void importingWorldChanged();
     void addonResourcesChanged();
     void worldTaskChanged();
+    void worldFileOperationFinished(const QString& error);
+    void addonImportFinished(const QString& error);
+    void mapCaptureRequested(const QString& id, QObject* map);
+    void mapCaptureFinished(const QString& id, const QString& error);
     void deletingWorldChanged();
     void exportingWorldChanged();
     void checkingForUpdatesChanged();
@@ -169,6 +178,9 @@ class AppController final : public QObject {
     bool deleting_world_{false};
     QFutureWatcher<QString> export_watcher_;
     bool exporting_world_{false};
+    QString map_capture_id_;
+    QUrl map_capture_destination_;
+    McpServer mcp_;
 };
 
 #endif  // BEDROCKMAP_APPCONTROLLER_H

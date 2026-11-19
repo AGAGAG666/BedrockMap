@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QUuid>
 #include <QVariantList>
 
 /// Common lifecycle and presentation contract for every document tab in the
@@ -27,6 +28,7 @@ class WorkspaceSession : public QObject {
     explicit WorkspaceSession(QString kind, QString path, QString title, QObject* parent = nullptr);
     ~WorkspaceSession() override = default;
 
+    [[nodiscard]] const QString& mcpId() const { return mcp_id_; }
     [[nodiscard]] QString kind() const { return kind_; }
     [[nodiscard]] QString path() const { return path_; }
     [[nodiscard]] QString title() const { return title_; }
@@ -63,6 +65,7 @@ class WorkspaceSession : public QObject {
     void setSaving(bool saving);
 
    private:
+    const QString mcp_id_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QString kind_;
     QString path_;
     QString title_;
