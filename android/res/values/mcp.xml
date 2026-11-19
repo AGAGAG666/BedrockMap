@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_service_title">BedrockMap MCP</string>
+    <string name="mcp_service_running">The local MCP server is running.</string>
+    <string name="mcp_service_stop">Stop MCP</string>
+</resources>

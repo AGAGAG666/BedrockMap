@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="mcp_service_title">BedrockMap MCP</string>
+    <string name="mcp_service_running">本机 MCP 服务正在运行。</string>
+    <string name="mcp_service_stop">停止 MCP</string>
+</resources>

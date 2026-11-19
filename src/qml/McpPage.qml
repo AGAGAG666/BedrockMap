@@ -41,6 +41,55 @@ ScrollView {
             Layout.fillWidth: true
             Layout.leftMargin: Theme.gapLarge
             Layout.rightMargin: Theme.gapLarge
+            text: qsTr("Require Bearer authorization")
+            enabled: App.mcp.supported
+            checked: App.mcp.authorizationRequired
+            onToggled: App.mcp.authorizationRequired = checked
+        }
+        AppTextField {
+            id: customToken
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
+            visible: App.mcp.authorizationRequired
+            placeholderText: qsTr("Custom Bearer token")
+            echoMode: TextInput.Password
+            inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText | Qt.ImhNoAutoUppercase
+            onAccepted: if (text.length > 0 && App.mcp.setCustomToken(text)) clear()
+        }
+        Flow {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
+            visible: App.mcp.authorizationRequired
+            spacing: Theme.gapMedium
+
+            AppButton {
+                text: qsTr("Save token")
+                enabled: customToken.text.length > 0
+                onClicked: if (App.mcp.setCustomToken(customToken.text)) customToken.clear()
+            }
+            AppButton {
+                text: qsTr("Use generated token")
+                enabled: App.mcp.hasCustomToken
+                onClicked: if (App.mcp.setCustomToken("")) customToken.clear()
+            }
+        }
+        Text {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
+            visible: App.mcp.authorizationRequired && App.mcp.hasCustomToken
+            text: App.mcp.token.length > 0 ? qsTr("Custom token is set.")
+                                          : qsTr("Custom token is set. Re-enter it to copy the authorization header.")
+            wrapMode: Text.Wrap
+            color: Theme.muted
+            font.pixelSize: Theme.fontCaption
+        }
+        AppSwitch {
+            Layout.fillWidth: true
+            Layout.leftMargin: Theme.gapLarge
+            Layout.rightMargin: Theme.gapLarge
             text: qsTr("Allow MCP writes")
             enabled: App.mcp.running
             checked: App.mcp.writeEnabled
@@ -83,7 +132,7 @@ ScrollView {
         AppButton {
             Layout.leftMargin: Theme.gapLarge
             Layout.bottomMargin: Theme.gapLarge
-            visible: App.mcp.running
+            visible: App.mcp.running && App.mcp.authorizationRequired && App.mcp.token.length > 0
             text: qsTr("Copy Authorization header")
             onClicked: App.logs.copyText("Authorization: Bearer " + App.mcp.token)
         }

@@ -1,18 +1,51 @@
 #include "mcpserver_p.h"
 
+#include "base/apppaths.h"
+
+#include <QCryptographicHash>
 #include <QHostAddress>
 #include <QJsonDocument>
 #include <QRandomGenerator>
+#include <QRegularExpression>
 #include <QSet>
+#include <QSettings>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTimer>
+
+#ifdef Q_OS_ANDROID
+#include <QCoreApplication>
+#include <QJniEnvironment>
+#include <QJniObject>
+#include <mutex>
+#endif
 
 namespace {
 constexpr quint16 localPort = 8765;
 constexpr qsizetype maxHeader = 16 * 1024;
 constexpr qsizetype maxBody = 1024 * 1024;
 constexpr int maxConnections = 16;
+constexpr qsizetype saltSize = 32;
+constexpr qsizetype digestSize = 32;
+
+QString mcpSettingsPath() { return app_paths::configDirectory() + QStringLiteral("/mcp.ini"); }
+
+QString generatedToken() {
+    QByteArray random;
+    for (int i = 0; i < 8; ++i) random += QByteArray::number(QRandomGenerator::system()->generate(), 16).rightJustified(8, '0');
+    return QString::fromLatin1(random);
+}
+
+QByteArray tokenDigest(const QByteArray& token, const QByteArray& salt) {
+    return QCryptographicHash::hash(salt + token, QCryptographicHash::Sha256);
+}
+#ifdef Q_OS_ANDROID
+constexpr char keepAliveClass[] = "io/github/hhhxiao/bedrockmap/McpKeepAliveService";
+std::mutex keepAliveMutex;
+McpServer* keepAliveTarget = nullptr;
+qint64 nextKeepAliveGeneration = 0;
+#endif
+
 const QString protocol = QStringLiteral("2025-11-25");
 const QSet<QString> protocols{protocol, QStringLiteral("2025-06-18")};
 
@@ -38,11 +71,24 @@ bool sameToken(const QByteArray& provided, const QByteArray& expected) {
 
 McpServer::McpServer(AppController& app)
     : listener_(std::make_unique<QTcpServer>()), tools_(std::make_unique<Tools>(app)) {
+    const QSettings settings(mcpSettingsPath(), QSettings::IniFormat);
+    authorizationRequired_ = settings.value(QStringLiteral("authorizationRequired"), true).toBool();
+    const auto verifier = settings.value(QStringLiteral("tokenVerifier")).toByteArray();
+    if (verifier.size() == saltSize + digestSize) tokenVerifier_ = verifier;
     listener_->setMaxPendingConnections(maxConnections);
     connect(listener_.get(), &QTcpServer::newConnection, this, &McpServer::acceptConnections);
+#ifdef Q_OS_ANDROID
+    const std::lock_guard lock(keepAliveMutex);
+    keepAliveTarget = this;
+#endif
 }
 
-McpServer::~McpServer() = default;
+McpServer::~McpServer() {
+#ifdef Q_OS_ANDROID
+    const std::lock_guard lock(keepAliveMutex);
+    keepAliveTarget = nullptr;
+#endif
+}
 
 bool McpServer::supported() const {
 #ifdef Q_OS_WASM
@@ -65,9 +111,35 @@ bool McpServer::start() {
         emit changed();
         return false;
     }
-    QByteArray random;
-    for (int i = 0; i < 8; ++i) random += QByteArray::number(QRandomGenerator::system()->generate(), 16).rightJustified(8, '0');
-    token_ = QString::fromLatin1(random);
+#ifdef Q_OS_ANDROID
+    QJniEnvironment env;
+    static const bool registered = env.registerNativeMethods(keepAliveClass, {{"notifyStopped", "(JZ)V",
+        reinterpret_cast<void*>(+[](JNIEnv*, jclass, jlong generation, jboolean failed) {
+            const std::lock_guard lock(keepAliveMutex);
+            if (auto* server = keepAliveTarget) {
+                QMetaObject::invokeMethod(server, [server, generation, failed] {
+                    if (server->keepAliveGeneration_ != generation) return;
+                    server->keepAliveGeneration_ = 0;
+                    server->stop();
+                    if (failed) {
+                        server->error_ = tr("Could not start Android MCP keep-alive.");
+                        emit server->changed();
+                    }
+                }, Qt::QueuedConnection);
+            }
+        })}});
+    const auto context = QNativeInterface::QAndroidApplication::context();
+    const auto generation = ++nextKeepAliveGeneration;
+    if (!registered || !context.isValid() || !QJniObject::callStaticMethod<jboolean>(
+            keepAliveClass, "start", "(Landroid/content/Context;J)Z", context.object(), jlong(generation))) {
+        listener_->close();
+        error_ = tr("Could not start Android MCP keep-alive.");
+        emit changed();
+        return false;
+    }
+    keepAliveGeneration_ = generation;
+#endif
+    if (!hasCustomToken()) token_ = generatedToken();
     emit changed();
     return true;
 }
@@ -75,10 +147,67 @@ bool McpServer::start() {
 void McpServer::stop() {
     listener_->close();
     for (auto* socket : listener_->findChildren<QTcpSocket*>()) socket->abort();
-    token_.clear();
+#ifdef Q_OS_ANDROID
+    if (keepAliveGeneration_ != 0) {
+        keepAliveGeneration_ = 0;
+        const auto context = QNativeInterface::QAndroidApplication::context();
+        if (context.isValid()) QJniObject::callStaticMethod<void>(
+            keepAliveClass, "stop", "(Landroid/content/Context;)V", context.object());
+    }
+#endif
+    if (!hasCustomToken()) token_.clear();
     writeEnabled_ = false;
     error_.clear();
     emit changed();
+}
+
+bool McpServer::saveAuthorization(bool required, const QByteArray& verifier) {
+    QSettings settings(mcpSettingsPath(), QSettings::IniFormat);
+    settings.setValue(QStringLiteral("authorizationRequired"), required);
+    if (verifier.isEmpty()) settings.remove(QStringLiteral("tokenVerifier"));
+    else settings.setValue(QStringLiteral("tokenVerifier"), verifier);
+    settings.sync();
+    if (settings.status() == QSettings::NoError) {
+        error_.clear();
+        return true;
+    }
+    error_ = tr("Could not save MCP authorization settings.");
+    emit changed();
+    return false;
+}
+
+void McpServer::setAuthorizationRequired(bool required) {
+    if (required == authorizationRequired_ || !saveAuthorization(required, tokenVerifier_)) return;
+    authorizationRequired_ = required;
+    emit changed();
+}
+
+bool McpServer::setCustomToken(const QString& token) {
+    static const QRegularExpression bearerToken(QStringLiteral(R"(\A[A-Za-z0-9._~+/-]+=*\z)"));
+    if (!token.isEmpty() && (token.size() > 512 || !bearerToken.match(token).hasMatch())) {
+        error_ = tr("Use up to 512 characters allowed in a Bearer token, without spaces.");
+        emit changed();
+        return false;
+    }
+    QByteArray verifier;
+    if (!token.isEmpty()) {
+        const auto salt = QByteArray::fromHex(generatedToken().toLatin1());
+        verifier = salt + tokenDigest(token.toLatin1(), salt);
+    }
+    if (!saveAuthorization(authorizationRequired_, verifier)) return false;
+    tokenVerifier_ = verifier;
+    token_ = token.isEmpty() && running() ? generatedToken() : token;
+    emit changed();
+    return true;
+}
+
+bool McpServer::authorized(const QByteArray& header) const {
+    if (!authorizationRequired_) return true;
+    if (header.first(qMin(qsizetype(7), header.size())).compare("Bearer ", Qt::CaseInsensitive) != 0) return false;
+    const auto provided = header.sliced(7);
+    if (provided.isEmpty() || provided.size() > 512) return false;
+    if (!hasCustomToken()) return sameToken(provided, token_.toLatin1());
+    return sameToken(tokenDigest(provided, tokenVerifier_.first(saltSize)), tokenVerifier_.sliced(saltSize));
 }
 
 void McpServer::setWriteEnabled(bool enabled) {
@@ -129,7 +258,7 @@ void McpServer::acceptConnections() {
                 reply(socket, "403 Forbidden");
                 return;
             }
-            if (!running() || token_.isEmpty() || !sameToken(headers.value("authorization"), "Bearer " + token_.toLatin1())) {
+            if (!running() || !authorized(headers.value("authorization"))) {
                 reply(socket, "401 Unauthorized", {}, "WWW-Authenticate: Bearer\r\n");
                 return;
             }

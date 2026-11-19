@@ -4437,5 +4437,53 @@ X %3…%4 · Z %5…%6
         <source>Copy Authorization header</source>
         <translation>复制 Authorization 请求头</translation>
     </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Require Bearer authorization</source>
+        <translation>要求 Bearer 鉴权</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom Bearer token</source>
+        <translation>自定义 Bearer token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Save token</source>
+        <translation>保存 token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Use generated token</source>
+        <translation>改用自动生成的 token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom token is set.</source>
+        <translation>已设置自定义 token。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom token is set. Re-enter it to copy the authorization header.</source>
+        <translation>已设置自定义 token。如需复制 Authorization 请求头，请重新输入。</translation>
+    </message>
+</context>
+<context>
+    <name>McpServer</name>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Could not start Android MCP keep-alive.</source>
+        <translation>无法启动 Android MCP 后台服务。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Could not save MCP authorization settings.</source>
+        <translation>无法保存 MCP 鉴权设置。</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Use up to 512 characters allowed in a Bearer token, without spaces.</source>
+        <translation>Bearer token 最多 512 字符，可使用字母、数字和 ._~+/-，末尾可加 =，不能含空格。</translation>
+    </message>
 </context>
 </TS>

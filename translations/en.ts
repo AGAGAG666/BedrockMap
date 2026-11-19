@@ -4437,5 +4437,53 @@ Terrain and block entities are kept. Save the world to keep this change.</transl
         <source>Copy Authorization header</source>
         <translation>Copy Authorization header</translation>
     </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Require Bearer authorization</source>
+        <translation>Require Bearer authorization</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom Bearer token</source>
+        <translation>Custom Bearer token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Save token</source>
+        <translation>Save token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Use generated token</source>
+        <translation>Use generated token</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom token is set.</source>
+        <translation>Custom token is set.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/McpPage.qml"/>
+        <source>Custom token is set. Re-enter it to copy the authorization header.</source>
+        <translation>Custom token is set. Re-enter it to copy the authorization header.</translation>
+    </message>
+</context>
+<context>
+    <name>McpServer</name>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Could not start Android MCP keep-alive.</source>
+        <translation>Could not start Android MCP keep-alive.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Could not save MCP authorization settings.</source>
+        <translation>Could not save MCP authorization settings.</translation>
+    </message>
+    <message>
+        <location filename="../src/controller/mcpserver.cpp"/>
+        <source>Use up to 512 characters allowed in a Bearer token, without spaces.</source>
+        <translation>Use up to 512 characters allowed in a Bearer token, without spaces.</translation>
+    </message>
 </context>
 </TS>
